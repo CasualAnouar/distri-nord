@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-950: #071a3a;
+  --color-navy-900: #0b2654;
+  --color-navy-800: #12357a;
+  --color-navy-100: #e6ecf7;
+  --color-sun-400: #ffc21a;
+  --color-sun-500: #f5a800;
+  --color-paper: #f5f7fb;
+  --color-line: #dfe4ee;
+  --color-ink: #111a2e;
+  --color-muted: #5b6579;
+  --color-ok: #138a4b;
+  --color-warn: #b45309;
+  --color-danger: #c62828;
+  --color-wa: #25d366;
+  --color-wa-dark: #075e54;
+  --color-wa-bubble: #d9fdd3;
+  --color-wa-bg: #efeae2;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans-ar: var(--font-plex-arabic), system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    overflow-x: clip;
+  }
+  [lang="ar"] body,
+  body:lang(ar) {
+    font-family: var(--font-sans-ar);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-navy-800);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-pop { animation: pop-in 0.25s ease-out both; }
+
+@keyframes typing {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+.typing-dot { animation: typing 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.wa-pattern {
+  background-color: var(--color-wa-bg);
+  background-image: radial-gradient(rgb(0 0 0 / 0.035) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
