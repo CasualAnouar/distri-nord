@@ -6,6 +6,7 @@ Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesal
 - **100 DH minimum** per cart. Checkout stays locked until it is reached.
 - **Cash on delivery** only. Delivery zones and fees: Tanger, Tétouan, M'diq, Martil, Fnideq, Asilah, Larache.
 - **WhatsApp flow**: the buyer confirms the address and gets tracking updates. The seller gets new-order alerts and moves the order forward.
+- **One seller**: Distri Nord takes every order and delivers it. Its contact number shown to buyers comes from `NEXT_PUBLIC_SELLER_PHONE` (set it on Vercel).
 - French and Arabic (RTL): `/fr`, `/ar`. Seller dashboard: `/admin`.
 
 ## Stack

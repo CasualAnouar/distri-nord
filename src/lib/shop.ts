@@ -31,7 +31,6 @@ export type Order = {
   customer: Customer;
   status: OrderStatus;
   history: { status: OrderStatus; at: string }[];
-  driver?: string;
 };
 
 // Northern delivery zones. Fees are placeholders.
@@ -45,7 +44,8 @@ export const cities: { id: string; fr: string; ar: string; fee: number; freeFrom
   { id: "larache", fr: "Larache", ar: "العرائش", fee: 25, freeFrom: 500 },
 ];
 
-export const drivers = ["Youssef", "Hamza", "Karim"];
+// The one seller: Distri Nord takes every order and delivers it. Set the real number on Vercel.
+export const SELLER_PHONE = process.env.NEXT_PUBLIC_SELLER_PHONE || "06 00 00 00 00";
 
 export function linePrice(p: Product, mode: Mode, qty: number) {
   return (mode === "lot" ? p.lot.price : p.unitPrice) * qty;

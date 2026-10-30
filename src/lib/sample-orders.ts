@@ -2,7 +2,7 @@ import { productById } from "@/data/products";
 import type { Customer, Mode, Order, OrderStatus } from "./shop";
 
 // A few orders so the seller dashboard is not empty on first open. Times are relative to now.
-const seeds: { id: string; minsAgo: number; status: OrderStatus; customer: Customer; lines: [string, Mode, number][]; driver?: string }[] = [
+const seeds: { id: string; minsAgo: number; status: OrderStatus; customer: Customer; lines: [string, Mode, number][] }[] = [
   {
     id: "DN-4821",
     minsAgo: 12,
@@ -21,7 +21,6 @@ const seeds: { id: string; minsAgo: number; status: OrderStatus; customer: Custo
     id: "DN-4809",
     minsAgo: 95,
     status: "shipping",
-    driver: "Hamza",
     customer: { name: "Mohamed Rifi", phone: "0612345678", city: "tanger", district: "Malabata", address: "Résidence Bahr, imm. 3, apt 12", landmark: "", note: "" },
     lines: [["redbull", "unit", 12], ["the-vert", "unit", 2]],
   },
@@ -29,7 +28,6 @@ const seeds: { id: string; minsAgo: number; status: OrderStatus; customer: Custo
     id: "DN-4795",
     minsAgo: 210,
     status: "delivered",
-    driver: "Youssef",
     customer: { name: "Café Al Bahia", phone: "0700112233", city: "mdiq", district: "Centre", address: "Corniche, local 7", landmark: "Près du port", note: "" },
     lines: [["oulmes", "lot", 3], ["jus-orange", "lot", 2], ["sucre", "unit", 4]],
   },
@@ -49,6 +47,6 @@ export function sampleOrders(): Order[] {
     const delivery = subtotal >= 300 ? 0 : (fees[s.customer.city] ?? 0);
     const steps = ["new", "confirmed", "shipping", "delivered"] as OrderStatus[];
     const history = steps.slice(0, steps.indexOf(s.status) + 1).map((status, i) => ({ status, at: new Date(now - (s.minsAgo - i * 8) * 60_000).toISOString() }));
-    return { id: s.id, createdAt, locale: "fr", lines, subtotal, delivery, total: subtotal + delivery, customer: s.customer, status: s.status, history, driver: s.driver };
+    return { id: s.id, createdAt, locale: "fr", lines, subtotal, delivery, total: subtotal + delivery, customer: s.customer, status: s.status, history };
   });
 }

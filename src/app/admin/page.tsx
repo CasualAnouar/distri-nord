@@ -89,7 +89,6 @@ export default function AdminOrders() {
                     <p className="mt-1">📍 {o.customer.address}, {o.customer.district}, {cities.find((c) => c.id === o.customer.city)?.fr}</p>
                     {o.customer.landmark && <p className="mt-1 text-muted">Repère : {o.customer.landmark}</p>}
                     {o.customer.note && <p className="mt-1 text-muted">📝 {o.customer.note}</p>}
-                    {o.driver && <p className="mt-1">🛵 Livreur : {o.driver}</p>}
                     <ul className="mt-3 space-y-1">
                       {o.lines.map((l) => (
                         <li key={`${l.productId}-${l.mode}`} className="flex justify-between gap-2">

@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { products, type Product } from "@/data/products";
-import { cartTotals, cities, drivers, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
+import { cartTotals, cities, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
 
 // Demo persistence: everything lives in this browser's localStorage and syncs across tabs,
@@ -151,7 +151,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           ? {
               ...o,
               status,
-              driver: status === "shipping" ? (o.driver ?? drivers[Math.floor(Math.random() * drivers.length)]) : o.driver,
               history: [...o.history, { status, at: new Date().toISOString() }],
             }
           : o,

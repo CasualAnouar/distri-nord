@@ -1,4 +1,4 @@
-import { cities, formatDh, type Order, type OrderStatus } from "./shop";
+import { cities, formatDh, SELLER_PHONE, type Order, type OrderStatus } from "./shop";
 
 // Scripted WhatsApp conversations for the demo. In production these are WhatsApp Business
 // template messages sent by the server on each status change, and the buttons are quick replies.
@@ -53,8 +53,8 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar"): Cha
         from: "them",
         at: shippingAt,
         text: ar
-          ? `🚚 طلبك في الطريق!\nالموصل: *${o.driver}* · 06 00 00 00 00\nجهّز *${dh(o.total)}* نقداً من فضلك.`
-          : `🚚 Votre commande est en route !\nLivreur : *${o.driver}* · 06 00 00 00 00\nMerci de préparer *${dh(o.total)}* en espèces.`,
+          ? `🚚 طلبك في الطريق!\nللتواصل: *${SELLER_PHONE}*\nجهّز *${dh(o.total)}* نقداً من فضلك.`
+          : `🚚 Votre commande est en route !\nContact : *${SELLER_PHONE}*\nMerci de préparer *${dh(o.total)}* en espèces.`,
       });
     }
     if (deliveredAt) {
@@ -89,7 +89,7 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar"): Cha
     push({
       from: "them",
       at: shippingAt,
-      text: ar ? `تم إسناد الطلب إلى *${o.driver}* وإخبار الزبون 👍` : `Commande confiée à *${o.driver}*, le client est prévenu 👍`,
+      text: ar ? `🚚 أنت في الطريق إلى ${o.customer.name}. تم إخبار الزبون 👍` : `🚚 Vous êtes en route vers ${o.customer.name}. Le client est prévenu 👍`,
       buttons: o.status === "shipping" ? [{ label: ar ? "📦 تم التسليم" : "📦 Marquer livrée", next: "delivered" }] : undefined,
     });
   }
