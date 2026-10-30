@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { ProductCard } from "./ProductCard";
+import { ProductTile } from "./ProductTile";
 
 export function Catalog() {
   const { locale, t } = useLocale();
@@ -17,6 +18,9 @@ export function Catalog() {
       (p) => (cat === "all" || p.category === cat) && (!needle || `${p.name} ${p.brand} ${p.size}`.toLowerCase().includes(needle)),
     );
   }, [catalog, cat, q]);
+
+  // Each category chip shows a real photo: its first product that has one.
+  const cover = (id: string) => catalog.find((p) => (id === "all" || p.category === id) && (p.image || p.barcode));
 
   return (
     <section id="catalogue" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-8">
@@ -32,9 +36,14 @@ export function Catalog() {
           <button
             key={c.id}
             onClick={() => setCat(c.id)}
-            className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${cat === c.id ? "border-navy-900 bg-navy-900 text-white" : "border-line bg-white text-ink"}`}
+            className={`flex shrink-0 items-center gap-2 rounded-full border py-1 ps-1 pe-4 text-sm font-semibold ${cat === c.id ? "border-navy-900 bg-navy-900 text-white" : "border-line bg-white text-ink"}`}
           >
-            <span aria-hidden>{c.icon}</span> {c[locale]}
+            {cover(c.id) ? (
+              <ProductTile product={cover(c.id)!} compact className="!aspect-square w-8 shrink-0 rounded-full" />
+            ) : (
+              <span aria-hidden className="grid size-8 place-items-center rounded-full bg-white text-base">{c.icon}</span>
+            )}
+            {c[locale]}
           </button>
         ))}
       </div>

@@ -8,7 +8,7 @@ import { sampleOrders } from "./sample-orders";
 
 // Demo persistence: everything lives in this browser's localStorage and syncs across tabs,
 // so the shop and the dashboard open side by side behave like one system. Supabase replaces this later.
-const KEYS = { cart: "dn2_cart", orders: "dn2_orders", config: "dn3_config" } as const;
+const KEYS = { cart: "dn2_cart", orders: "dn2_orders", config: "dn4_config" } as const;
 
 type Store = {
   ready: boolean;
