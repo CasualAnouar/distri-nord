@@ -1,4 +1,4 @@
-// Starting catalogue for the demo. Everything here is editable from /admin; prices are placeholders.
+// Starting catalogue for the demo. Everything here is editable from the dashboard; prices are placeholders.
 
 export type Category = { id: string; icon: string; fr: string; ar: string };
 

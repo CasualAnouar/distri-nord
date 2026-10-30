@@ -1,6 +1,6 @@
 import { defaultCategories, defaultProducts, type Category, type Product } from "@/data/products";
 
-// Everything the seller can change from /admin. Defaults seed a fresh demo.
+// Everything the seller can change from the dashboard. Defaults seed a fresh demo.
 
 export type Localized = { fr: string; ar: string };
 

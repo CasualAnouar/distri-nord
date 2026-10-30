@@ -7,7 +7,7 @@ import { cartTotals, type AddressReply, type CartLine, type Customer, type Mode,
 import { sampleOrders } from "./sample-orders";
 
 // Demo persistence: everything lives in this browser's localStorage and syncs across tabs,
-// so the shop and /admin open side by side behave like one system. Supabase replaces this later.
+// so the shop and the dashboard open side by side behave like one system. Supabase replaces this later.
 const KEYS = { cart: "dn2_cart", orders: "dn2_orders", config: "dn2_config" } as const;
 
 type Store = {

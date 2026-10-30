@@ -5,7 +5,7 @@ import { LocaleProvider } from "@/i18n/locale";
 import { StoreProvider } from "@/lib/store";
 import { AdminNav } from "@/components/admin/AdminNav";
 
-export const metadata: Metadata = { title: "Espace vendeur · Distri Nord", robots: { index: false } };
+export const metadata: Metadata = { title: "Gestion", robots: { index: false, follow: false } };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (

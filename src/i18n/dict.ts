@@ -63,7 +63,6 @@ const fr = {
     ["🚚", "Suivez la livraison", "Vous êtes prévenu quand votre commande part et quand elle arrive."],
     ["💵", "Payez à la réception", "En espèces, à la réception. Rien à payer en ligne."],
   ],
-  seller: "Espace vendeur",
   language: "العربية",
 };
 
@@ -127,7 +126,6 @@ const ar: Dict = {
     ["🚚", "تتبع التوصيل", "نخبرك عند خروج طلبك وعند وصوله."],
     ["💵", "ادفع عند الاستلام", "نقداً عند الاستلام. لا دفع عبر الإنترنت."],
   ],
-  seller: "فضاء البائع",
   language: "Français",
 };
 
