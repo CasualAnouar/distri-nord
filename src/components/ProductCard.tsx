@@ -9,7 +9,7 @@ import { ProductTile } from "./ProductTile";
 
 export function ProductCard({ product }: { product: Product }) {
   const { locale, t } = useLocale();
-  const { addToCart } = useStore();
+  const { addToCart, settings } = useStore();
   const [mode, setMode] = useState<Mode>("lot");
   const [qty, setQty] = useState(1);
   const [flash, setFlash] = useState(false);
@@ -36,7 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
         )}
         {out ? (
           <span className="absolute end-2 top-2 rounded-full bg-danger px-2 py-0.5 text-[11px] font-bold text-white">{t.outOfStock}</span>
-        ) : product.stock < 120 ? (
+        ) : product.stock < settings.lowStockAt ? (
           <span className="absolute end-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-bold text-warn">{t.lowStock}</span>
         ) : null}
       </div>

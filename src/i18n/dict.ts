@@ -6,11 +6,8 @@ export function isLocale(v: string): v is Locale {
 }
 
 const fr = {
-  tagline: "Grossiste & distributeur à Rabat",
-  heroTitle: "Votre stock livré chez vous, en lot ou à la pièce",
-  heroText: "Boissons, snacks, épicerie et hygiène aux prix de gros. Commande dès 100 DH, paiement à la livraison, suivi sur WhatsApp.",
   heroCta: "Voir le catalogue",
-  perks: ["Paiement à la livraison", "Dès 100 DH de commande", "Suivi WhatsApp", "Livraison Rabat, Salé, Témara"],
+  perks: (min: string, zones: string) => ["Paiement à la livraison", `Dès ${min} de commande`, "Suivi WhatsApp", `Livraison ${zones}`],
   search: "Rechercher un produit, une marque…",
   all: "Tout",
   unit: "Pièce",
@@ -31,8 +28,8 @@ const fr = {
   delivery: "Livraison",
   free: "Gratuite",
   total: "Total à payer à la livraison",
-  minLeft: (v: string) => `Ajoutez encore ${v} pour atteindre le minimum de commande de 100 DH.`,
-  minOk: "Minimum de 100 DH atteint ✓",
+  minLeft: (v: string, min: string) => `Ajoutez encore ${v} pour atteindre le minimum de commande de ${min}.`,
+  minOk: (min: string) => `Minimum de ${min} atteint ✓`,
   checkout: "Vos coordonnées",
   name: "Nom complet ou nom du magasin",
   phone: "Numéro WhatsApp",
@@ -61,12 +58,11 @@ const fr = {
   demoNote: "Démo : les boutons dans la conversation font avancer la commande, comme le ferait le vrai WhatsApp.",
   howTitle: "Comment ça marche",
   how: [
-    ["🛒", "Remplissez votre panier", "En lot pour le prix de gros, ou à la pièce. Minimum 100 DH."],
+    ["🛒", "Remplissez votre panier", "En lot pour le prix de gros, ou à la pièce. Minimum {min}."],
     ["💬", "Confirmez sur WhatsApp", "Validez votre adresse, partagez votre position ou écrivez-la dans un message."],
     ["🚚", "Suivez la livraison", "Vous êtes prévenu quand votre commande part et quand elle arrive."],
     ["💵", "Payez à la réception", "En espèces, à la réception. Rien à payer en ligne."],
   ],
-  footer: "Distri Nord · Grossiste alimentaire · Rabat",
   seller: "Espace vendeur",
   language: "العربية",
 };
@@ -74,11 +70,8 @@ const fr = {
 type Dict = typeof fr;
 
 const ar: Dict = {
-  tagline: "بائع بالجملة وموزع في الرباط",
-  heroTitle: "سلعتك توصل لعندك، بالجملة أو بالتقسيط",
-  heroText: "مشروبات، وجبات خفيفة، بقالة ومواد التنظيف بأثمنة الجملة. الطلب من 100 درهم، الدفع عند الاستلام، والتتبع عبر واتساب.",
   heroCta: "تصفح المنتجات",
-  perks: ["الدفع عند الاستلام", "الطلب من 100 درهم", "التتبع عبر واتساب", "التوصيل في الرباط، سلا وتمارة"],
+  perks: (min: string, zones: string) => ["الدفع عند الاستلام", `الطلب من ${min}`, "التتبع عبر واتساب", `التوصيل في ${zones}`],
   search: "ابحث عن منتج أو علامة…",
   all: "الكل",
   unit: "بالحبة",
@@ -99,8 +92,8 @@ const ar: Dict = {
   delivery: "التوصيل",
   free: "مجاني",
   total: "المبلغ عند الاستلام",
-  minLeft: (v: string) => `أضف ${v} للوصول إلى الحد الأدنى للطلب (100 درهم).`,
-  minOk: "تم بلوغ الحد الأدنى 100 درهم ✓",
+  minLeft: (v: string, min: string) => `أضف ${v} للوصول إلى الحد الأدنى للطلب (${min}).`,
+  minOk: (min: string) => `تم بلوغ الحد الأدنى ${min} ✓`,
   checkout: "معلوماتك",
   name: "الاسم الكامل أو اسم المحل",
   phone: "رقم واتساب",
@@ -129,12 +122,11 @@ const ar: Dict = {
   demoNote: "عرض تجريبي: الأزرار داخل المحادثة تُقدّم الطلب كما سيفعل واتساب الحقيقي.",
   howTitle: "كيف يعمل",
   how: [
-    ["🛒", "املأ سلتك", "بالجملة بثمن أقل، أو بالحبة. الحد الأدنى 100 درهم."],
+    ["🛒", "املأ سلتك", "بالجملة بثمن أقل، أو بالحبة. الحد الأدنى {min}."],
     ["💬", "أكّد عبر واتساب", "أكّد عنوانك، أرسل موقعك أو اكتبه في رسالة."],
     ["🚚", "تتبع التوصيل", "نخبرك عند خروج طلبك وعند وصوله."],
     ["💵", "ادفع عند الاستلام", "نقداً عند الاستلام. لا دفع عبر الإنترنت."],
   ],
-  footer: "ديستري نور · بيع المواد الغذائية بالجملة · الرباط",
   seller: "فضاء البائع",
   language: "Français",
 };

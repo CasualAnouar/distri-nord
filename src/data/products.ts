@@ -1,21 +1,22 @@
-// Sample catalogue for the demo. Prices are placeholders in dirhams, to be replaced by the retailer's list.
+// Starting catalogue for the demo. Everything here is editable from /admin; prices are placeholders.
 
-export type CategoryId = "energy" | "sodas" | "water" | "juice" | "snacks" | "grocery" | "tea" | "hygiene";
+export type Category = { id: string; icon: string; fr: string; ar: string };
 
 export type Product = {
   id: string;
   name: string;
   brand: string;
   size: string;
-  category: CategoryId;
+  category: string;
   unitPrice: number;
   lot: { qty: number; price: number };
   stock: number; // in units
   color: string; // tile background
   tag?: "promo" | "new" | "best";
+  hidden?: boolean;
 };
 
-export const categories: { id: CategoryId; icon: string; fr: string; ar: string }[] = [
+export const defaultCategories: Category[] = [
   { id: "energy", icon: "⚡", fr: "Énergisants", ar: "مشروبات الطاقة" },
   { id: "sodas", icon: "🥤", fr: "Sodas", ar: "مشروبات غازية" },
   { id: "water", icon: "💧", fr: "Eaux", ar: "مياه" },
@@ -26,7 +27,7 @@ export const categories: { id: CategoryId; icon: string; fr: string; ar: string 
   { id: "hygiene", icon: "🧴", fr: "Hygiène & entretien", ar: "نظافة وتنظيف" },
 ];
 
-export const products: Product[] = [
+export const defaultProducts: Product[] = [
   { id: "monster-green", name: "Monster Energy Original", brand: "Monster", size: "50 cl", category: "energy", unitPrice: 15, lot: { qty: 24, price: 324 }, stock: 480, color: "#1f2a1f", tag: "best" },
   { id: "monster-ultra", name: "Monster Ultra White", brand: "Monster", size: "50 cl", category: "energy", unitPrice: 15, lot: { qty: 24, price: 324 }, stock: 240, color: "#d9dde3" },
   { id: "monster-mango", name: "Monster Mango Loco", brand: "Monster", size: "50 cl", category: "energy", unitPrice: 15, lot: { qty: 24, price: 324 }, stock: 96, color: "#2bb3c0", tag: "new" },
@@ -53,4 +54,4 @@ export const products: Product[] = [
   { id: "colgate", name: "Dentifrice", brand: "Colgate", size: "75 ml", category: "hygiene", unitPrice: 14, lot: { qty: 12, price: 156 }, stock: 160, color: "#d71920", tag: "promo" },
 ];
 
-export const productById = new Map(products.map((p) => [p.id, p]));
+export const productById = new Map(defaultProducts.map((p) => [p.id, p]));

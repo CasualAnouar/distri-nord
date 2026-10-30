@@ -1,4 +1,5 @@
-import { cities, formatDh, SELLER_PHONE, type Order, type OrderStatus } from "./shop";
+import type { Config } from "./config";
+import { formatDh, type Order, type OrderStatus } from "./shop";
 
 // Scripted WhatsApp conversations for the demo. In production these are WhatsApp Business
 // template messages sent by the server on each status change, and the buttons are quick replies.
@@ -11,10 +12,13 @@ export type ChatMessage = { id: string; from: "them" | "me"; text: string; at: s
 
 const reached = (o: Order, s: OrderStatus) => o.history.find((h) => h.status === s)?.at;
 
-export function conversation(o: Order, view: ChatView, locale: "fr" | "ar"): ChatMessage[] {
+export function conversation(o: Order, view: ChatView, locale: "fr" | "ar", config: Config): ChatMessage[] {
+  const { settings } = config;
+  const store = settings.storeName[locale];
+  const SELLER_PHONE = settings.sellerPhone;
   const ar = locale === "ar";
   const dh = (n: number) => formatDh(n, locale);
-  const city = cities.find((c) => c.id === o.customer.city)?.[locale] ?? o.customer.city;
+  const city = config.cities.find((c) => c.id === o.customer.city)?.[locale] ?? o.customer.city;
   const first = o.customer.name.split(" ")[0];
   const items = o.lines.map((l) => `• ${l.qty} × ${l.name}${l.mode === "lot" ? (ar ? ` (علبة ${l.unitsPerLine})` : ` (lot ${l.unitsPerLine})`) : ""}`).join("\n");
   // The address can come from the checkout form, or later from WhatsApp as a pin or a typed message.
@@ -36,8 +40,8 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar"): Cha
       from: "them",
       at: o.createdAt,
       text: ar
-        ? `السلام عليكم ${first} 👋\nشكراً على طلبك *${o.id}* من ديستري نور.\n\n${items}\n\n💵 المبلغ عند الاستلام: *${dh(o.total)}*`
-        : `Salam ${first} 👋\nMerci pour votre commande *${o.id}* chez Distri Nord.\n\n${items}\n\n💵 À payer à la livraison : *${dh(o.total)}*`,
+        ? `السلام عليكم ${first} 👋\nشكراً على طلبك *${o.id}* من ${store}.\n\n${items}\n\n💵 المبلغ عند الاستلام: *${dh(o.total)}*`
+        : `Salam ${first} 👋\nMerci pour votre commande *${o.id}* chez ${store}.\n\n${items}\n\n💵 À payer à la livraison : *${dh(o.total)}*`,
     });
     push({
       from: "them",
@@ -67,7 +71,7 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar"): Cha
         at: confirmedAt,
         text:
           (reply?.via === "location" ? (ar ? "📍 توصلنا بموقعك، شكراً!\n" : "📍 Position bien reçue, merci !\n") : reply?.via === "text" ? (ar ? "✏️ توصلنا بعنوانك، شكراً!\n" : "✏️ Adresse bien reçue, merci !\n") : "") +
-          (ar ? "تم تأكيد طلبك ✅\nالتوصيل متوقع اليوم بين 14:00 و 18:00." : "Votre commande est confirmée ✅\nLivraison prévue aujourd'hui entre 14h et 18h."),
+          (ar ? `تم تأكيد طلبك ✅\nالتوصيل متوقع ${settings.deliveryWindow.ar}.` : `Votre commande est confirmée ✅\nLivraison prévue ${settings.deliveryWindow.fr}.`),
       });
     }
     if (shippingAt) {
@@ -83,7 +87,7 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar"): Cha
       push({
         from: "them",
         at: deliveredAt,
-        text: ar ? `📦 تم التسليم. شكراً على ثقتك في ديستري نور!\nكيف كانت تجربتك؟` : `📦 Commande livrée. Merci de votre confiance !\nComment s'est passée votre commande ?`,
+        text: ar ? `📦 تم التسليم. شكراً على ثقتك في ${store}!\nكيف كانت تجربتك؟` : `📦 Commande livrée. Merci de votre confiance !\nComment s'est passée votre commande ?`,
         buttons: [{ label: "⭐⭐⭐⭐⭐" }, { label: ar ? "💬 ملاحظة" : "💬 Un souci" }],
       });
     }

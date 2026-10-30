@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { conversation, type ChatButton, type ChatView } from "@/lib/whatsapp";
-import { cities, type Order } from "@/lib/shop";
+import type { Order } from "@/lib/shop";
 import { WhatsAppPhone } from "./WhatsAppPhone";
 
 // Buyer and seller phones side by side on desktop, tabs on mobile.
 export function OrderChats({ order, initial = "buyer" }: { order: Order; initial?: ChatView }) {
   const { locale, t } = useLocale();
-  const { setStatus, confirmAddress } = useStore();
+  const { setStatus, confirmAddress, config } = useStore();
+  const cities = config.cities;
   const [view, setView] = useState<ChatView>(initial);
   const [writing, setWriting] = useState(false);
   const ar = locale === "ar";
@@ -34,9 +35,9 @@ export function OrderChats({ order, initial = "buyer" }: { order: Order; initial
 
   const phone = (v: ChatView) => (
     <WhatsAppPhone
-      title={v === "buyer" ? "Distri Nord" : locale === "ar" ? "ديستري نور · البائع" : "Distri Nord · Vendeur"}
+      title={v === "buyer" ? config.settings.storeName[locale] : `${config.settings.storeName[locale]} · ${locale === "ar" ? "البائع" : "Vendeur"}`}
       subtitle={v === "buyer" ? (locale === "ar" ? "حساب تجاري" : "Compte professionnel") : locale === "ar" ? "إشعارات الطلبات" : "Alertes commandes"}
-      messages={conversation(order, v, locale)}
+      messages={conversation(order, v, locale, config)}
       onButton={onButton(v)}
       composer={
         v === "buyer" && writing && order.status === "new"

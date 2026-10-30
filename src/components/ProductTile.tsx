@@ -1,4 +1,7 @@
-import { categories, type Product } from "@/data/products";
+"use client";
+
+import type { Product } from "@/data/products";
+import { useStore } from "@/lib/store";
 
 // Placeholder visual until the retailer's product photos are in.
 function isLight(hex: string) {
@@ -9,6 +12,7 @@ function isLight(hex: string) {
 
 export function ProductTile({ product, className = "", compact = false }: { product: Product; className?: string; compact?: boolean }) {
   const light = isLight(product.color);
+  const { categories } = useStore();
   const icon = categories.find((c) => c.id === product.category)?.icon;
   return (
     <div

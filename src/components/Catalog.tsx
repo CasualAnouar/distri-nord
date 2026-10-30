@@ -1,15 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { categories, type CategoryId } from "@/data/products";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { ProductCard } from "./ProductCard";
 
 export function Catalog() {
   const { locale, t } = useLocale();
-  const { catalog } = useStore();
-  const [cat, setCat] = useState<CategoryId | "all">("all");
+  const { catalog, categories } = useStore();
+  const [cat, setCat] = useState<string>("all");
   const [q, setQ] = useState("");
 
   const list = useMemo(() => {
@@ -29,7 +28,7 @@ export function Catalog() {
         className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-base shadow-sm outline-none focus:border-navy-800"
       />
       <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2">
-        {[{ id: "all" as const, icon: "✨", fr: t.all, ar: t.all }, ...categories].map((c) => (
+        {[{ id: "all", icon: "✨", fr: t.all, ar: t.all }, ...categories.filter((c) => catalog.some((p) => p.category === c.id))].map((c) => (
           <button
             key={c.id}
             onClick={() => setCat(c.id)}

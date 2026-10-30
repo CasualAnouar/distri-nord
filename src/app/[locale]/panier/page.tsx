@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
-import { cartTotals, cities, formatDh, linePrice, MIN_CART, normalizePhone, type Customer } from "@/lib/shop";
+import { formatDh, linePrice, normalizePhone, type Customer } from "@/lib/shop";
 import { ProductTile } from "@/components/ProductTile";
 
 const empty: Customer = { name: "", phone: "", city: "", district: "", address: "", landmark: "", note: "" };
@@ -13,13 +13,14 @@ const empty: Customer = { name: "", phone: "", city: "", district: "", address: 
 export default function CartPage() {
   const { locale, t } = useLocale();
   const router = useRouter();
-  const { ready, cart, getProduct, setQty, placeOrder } = useStore();
+  const { ready, cart, getProduct, setQty, placeOrder, totals: cartTotalsFor, cities, settings } = useStore();
   const [form, setForm] = useState<Customer>(empty);
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [viaWa, setViaWa] = useState(false);
 
-  const totals = cartTotals(cart, getProduct, form.city);
+  const totals = cartTotalsFor(form.city);
+  const min = formatDh(settings.minCart, locale);
   const phone = normalizePhone(form.phone);
   const errors = {
     name: !form.name.trim(),
@@ -72,7 +73,7 @@ export default function CartPage() {
     );
   }
 
-  const pct = Math.min(100, (totals.subtotal / MIN_CART) * 100);
+  const pct = Math.min(100, (totals.subtotal / settings.minCart) * 100);
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_420px]">
@@ -110,7 +111,7 @@ export default function CartPage() {
 
         <div className={`mt-4 rounded-2xl p-4 ${totals.missing > 0 ? "bg-sun-400/20" : "bg-ok/10"}`}>
           <p className={`text-sm font-semibold ${totals.missing > 0 ? "text-warn" : "text-ok"}`}>
-            {totals.missing > 0 ? t.minLeft(formatDh(totals.missing, locale)) : t.minOk}
+            {totals.missing > 0 ? t.minLeft(formatDh(totals.missing, locale), min) : t.minOk(min)}
           </p>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
             <div className={`h-full rounded-full ${totals.missing > 0 ? "bg-sun-500" : "bg-ok"}`} style={{ width: `${pct}%` }} />

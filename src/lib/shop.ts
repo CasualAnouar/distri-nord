@@ -1,6 +1,5 @@
 import type { Product } from "@/data/products";
-
-export const MIN_CART = 100;
+import type { City } from "./config";
 
 export type Mode = "unit" | "lot";
 
@@ -39,20 +38,6 @@ export type AddressReply = { via: "button" } | { via: "text"; text: string } | {
 
 export const mapsUrl = (lat: number, lng: number) => `https://maps.google.com/?q=${lat},${lng}`;
 
-// Delivery zones around the Rabat store. Fees are placeholders.
-export const cities: { id: string; fr: string; ar: string; fee: number; freeFrom: number; lat: number; lng: number }[] = [
-  { id: "rabat", fr: "Rabat", ar: "الرباط", fee: 0, freeFrom: 0, lat: 34.0209, lng: -6.8416 },
-  { id: "sale", fr: "Salé", ar: "سلا", fee: 10, freeFrom: 200, lat: 34.0331, lng: -6.7985 },
-  { id: "temara", fr: "Témara", ar: "تمارة", fee: 10, freeFrom: 200, lat: 33.9287, lng: -6.9063 },
-  { id: "harhoura", fr: "Harhoura", ar: "الهرهورة", fee: 15, freeFrom: 300, lat: 33.9502, lng: -6.9455 },
-  { id: "skhirat", fr: "Skhirat", ar: "الصخيرات", fee: 20, freeFrom: 400, lat: 33.8527, lng: -7.0317 },
-  { id: "bouknadel", fr: "Bouknadel", ar: "بوقنادل", fee: 20, freeFrom: 400, lat: 34.1236, lng: -6.7448 },
-  { id: "kenitra", fr: "Kénitra", ar: "القنيطرة", fee: 30, freeFrom: 500, lat: 34.261, lng: -6.5802 },
-];
-
-// The one seller: Distri Nord takes every order and delivers it. Set the real number on Vercel.
-export const SELLER_PHONE = process.env.NEXT_PUBLIC_SELLER_PHONE || "06 00 00 00 00";
-
 export function linePrice(p: Product, mode: Mode, qty: number) {
   return (mode === "lot" ? p.lot.price : p.unitPrice) * qty;
 }
@@ -66,7 +51,7 @@ export function lotSaving(p: Product) {
   return Math.round(((full - p.lot.price) / full) * 100);
 }
 
-export function cartTotals(lines: CartLine[], lookup: (id: string) => Product | undefined, cityId?: string) {
+export function cartTotals(lines: CartLine[], lookup: (id: string) => Product | undefined, opts: { cities: City[]; minCart: number; cityId?: string }) {
   let subtotal = 0;
   let count = 0;
   for (const l of lines) {
@@ -75,9 +60,9 @@ export function cartTotals(lines: CartLine[], lookup: (id: string) => Product | 
     subtotal += linePrice(p, l.mode, l.qty);
     count += l.qty;
   }
-  const city = cities.find((c) => c.id === cityId);
+  const city = opts.cities.find((c) => c.id === opts.cityId);
   const delivery = !city || subtotal >= city.freeFrom ? 0 : city.fee;
-  return { subtotal, count, delivery, total: subtotal + delivery, missing: Math.max(0, MIN_CART - subtotal) };
+  return { subtotal, count, delivery, total: subtotal + delivery, missing: Math.max(0, opts.minCart - subtotal) };
 }
 
 export function formatDh(n: number, locale: "fr" | "ar" = "fr") {
