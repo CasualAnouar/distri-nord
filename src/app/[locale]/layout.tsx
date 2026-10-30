@@ -8,7 +8,7 @@ import { StoreProvider } from "@/lib/store";
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
-  title: "Distri Nord · Grossiste du Nord",
+  title: "Distri Nord · Grossiste à Rabat",
   description: "Boissons, snacks, épicerie et hygiène en lot ou à la pièce. Paiement à la livraison, suivi WhatsApp.",
 };
 

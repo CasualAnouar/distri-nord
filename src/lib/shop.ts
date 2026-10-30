@@ -39,15 +39,15 @@ export type AddressReply = { via: "button" } | { via: "text"; text: string } | {
 
 export const mapsUrl = (lat: number, lng: number) => `https://maps.google.com/?q=${lat},${lng}`;
 
-// Northern delivery zones. Fees are placeholders.
+// Delivery zones around the Rabat store. Fees are placeholders.
 export const cities: { id: string; fr: string; ar: string; fee: number; freeFrom: number; lat: number; lng: number }[] = [
-  { id: "tanger", fr: "Tanger", ar: "طنجة", fee: 0, freeFrom: 0, lat: 35.7595, lng: -5.834 },
-  { id: "tetouan", fr: "Tétouan", ar: "تطوان", fee: 15, freeFrom: 300, lat: 35.5785, lng: -5.3684 },
-  { id: "mdiq", fr: "M'diq", ar: "المضيق", fee: 15, freeFrom: 300, lat: 35.6858, lng: -5.3253 },
-  { id: "martil", fr: "Martil", ar: "مرتيل", fee: 15, freeFrom: 300, lat: 35.6167, lng: -5.2752 },
-  { id: "fnideq", fr: "Fnideq", ar: "الفنيدق", fee: 20, freeFrom: 400, lat: 35.8498, lng: -5.357 },
-  { id: "asilah", fr: "Asilah", ar: "أصيلة", fee: 20, freeFrom: 400, lat: 35.465, lng: -6.0353 },
-  { id: "larache", fr: "Larache", ar: "العرائش", fee: 25, freeFrom: 500, lat: 35.1932, lng: -6.1557 },
+  { id: "rabat", fr: "Rabat", ar: "الرباط", fee: 0, freeFrom: 0, lat: 34.0209, lng: -6.8416 },
+  { id: "sale", fr: "Salé", ar: "سلا", fee: 10, freeFrom: 200, lat: 34.0331, lng: -6.7985 },
+  { id: "temara", fr: "Témara", ar: "تمارة", fee: 10, freeFrom: 200, lat: 33.9287, lng: -6.9063 },
+  { id: "harhoura", fr: "Harhoura", ar: "الهرهورة", fee: 15, freeFrom: 300, lat: 33.9502, lng: -6.9455 },
+  { id: "skhirat", fr: "Skhirat", ar: "الصخيرات", fee: 20, freeFrom: 400, lat: 33.8527, lng: -7.0317 },
+  { id: "bouknadel", fr: "Bouknadel", ar: "بوقنادل", fee: 20, freeFrom: 400, lat: 34.1236, lng: -6.7448 },
+  { id: "kenitra", fr: "Kénitra", ar: "القنيطرة", fee: 30, freeFrom: 500, lat: 34.261, lng: -6.5802 },
 ];
 
 // The one seller: Distri Nord takes every order and delivers it. Set the real number on Vercel.

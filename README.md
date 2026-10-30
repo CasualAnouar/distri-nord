@@ -1,10 +1,10 @@
 # Distri Nord
 
-Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesaler in the north of Morocco.
+Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesaler based in Rabat.
 
 - Products sold **by the lot** (wholesale price) or **by the piece**.
 - **100 DH minimum** per cart. Checkout stays locked until it is reached.
-- **Cash on delivery** only. Delivery zones and fees: Tanger, Tétouan, M'diq, Martil, Fnideq, Asilah, Larache.
+- **Cash on delivery** only. Delivery zones and fees: Rabat (free), Salé, Témara, Harhoura, Skhirat, Bouknadel, Kénitra.
 - **WhatsApp flow**: the buyer confirms the address, shares a location pin, or types the address in a message (the checkout address is optional), then gets tracking updates. The seller gets new-order alerts and moves the order forward.
 - **One seller**: Distri Nord takes every order and delivers it. Its contact number shown to buyers comes from `NEXT_PUBLIC_SELLER_PHONE` (set it on Vercel).
 - French and Arabic (RTL): `/fr`, `/ar`. Seller dashboard: `/admin`.

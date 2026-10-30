@@ -6,11 +6,11 @@ export function isLocale(v: string): v is Locale {
 }
 
 const fr = {
-  tagline: "Grossiste & distributeur du Nord",
+  tagline: "Grossiste & distributeur à Rabat",
   heroTitle: "Votre stock livré chez vous, en lot ou à la pièce",
   heroText: "Boissons, snacks, épicerie et hygiène aux prix de gros. Commande dès 100 DH, paiement à la livraison, suivi sur WhatsApp.",
   heroCta: "Voir le catalogue",
-  perks: ["Paiement à la livraison", "Dès 100 DH de commande", "Suivi WhatsApp", "Livraison Tanger & Tétouan"],
+  perks: ["Paiement à la livraison", "Dès 100 DH de commande", "Suivi WhatsApp", "Livraison Rabat, Salé, Témara"],
   search: "Rechercher un produit, une marque…",
   all: "Tout",
   unit: "Pièce",
@@ -66,7 +66,7 @@ const fr = {
     ["🚚", "Suivez la livraison", "Vous êtes prévenu quand votre commande part et quand elle arrive."],
     ["💵", "Payez à la réception", "En espèces, à la réception. Rien à payer en ligne."],
   ],
-  footer: "Distri Nord · Grossiste alimentaire · Tanger",
+  footer: "Distri Nord · Grossiste alimentaire · Rabat",
   seller: "Espace vendeur",
   language: "العربية",
 };
@@ -74,11 +74,11 @@ const fr = {
 type Dict = typeof fr;
 
 const ar: Dict = {
-  tagline: "بائع بالجملة وموزع في الشمال",
+  tagline: "بائع بالجملة وموزع في الرباط",
   heroTitle: "سلعتك توصل لعندك، بالجملة أو بالتقسيط",
   heroText: "مشروبات، وجبات خفيفة، بقالة ومواد التنظيف بأثمنة الجملة. الطلب من 100 درهم، الدفع عند الاستلام، والتتبع عبر واتساب.",
   heroCta: "تصفح المنتجات",
-  perks: ["الدفع عند الاستلام", "الطلب من 100 درهم", "التتبع عبر واتساب", "التوصيل في طنجة وتطوان"],
+  perks: ["الدفع عند الاستلام", "الطلب من 100 درهم", "التتبع عبر واتساب", "التوصيل في الرباط، سلا وتمارة"],
   search: "ابحث عن منتج أو علامة…",
   all: "الكل",
   unit: "بالحبة",
@@ -134,7 +134,7 @@ const ar: Dict = {
     ["🚚", "تتبع التوصيل", "نخبرك عند خروج طلبك وعند وصوله."],
     ["💵", "ادفع عند الاستلام", "نقداً عند الاستلام. لا دفع عبر الإنترنت."],
   ],
-  footer: "ديستري نور · بيع المواد الغذائية بالجملة · طنجة",
+  footer: "ديستري نور · بيع المواد الغذائية بالجملة · الرباط",
   seller: "فضاء البائع",
   language: "Français",
 };

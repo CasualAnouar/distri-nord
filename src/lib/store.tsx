@@ -7,7 +7,7 @@ import { sampleOrders } from "./sample-orders";
 
 // Demo persistence: everything lives in this browser's localStorage and syncs across tabs,
 // so the shop and /admin open side by side behave like one system. Supabase replaces this later.
-const KEYS = { cart: "dn_cart", orders: "dn_orders", overrides: "dn_products" } as const;
+const KEYS = { cart: "dn2_cart", orders: "dn2_orders", overrides: "dn2_products" } as const;
 
 type Overrides = Record<string, Partial<Pick<Product, "unitPrice" | "stock">> & { lotPrice?: number }>;
 
