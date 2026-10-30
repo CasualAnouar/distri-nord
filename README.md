@@ -22,7 +22,7 @@ The WhatsApp conversations (`src/lib/whatsapp.ts`) are scripted from the order s
 ## Going live (after the pitch)
 1. **Supabase**: tables `products`, `orders`, `order_lines`, `order_events`, with RLS for staff, plus Supabase Auth for the dashboard (replacing Basic auth). This replaces `store.tsx`.
 2. **WhatsApp Business Cloud API** (Meta): a verified business number and approved message templates (order received, confirm address, out for delivery, delivered). Address confirmation uses quick-reply buttons and a webhook (`/api/whatsapp`) that updates the order.
-3. **Product photos** in place of the coloured tiles (`src/components/ProductTile.tsx`).
+3. **Product photos**: 15 sample products use front photos from [Open Food Facts](https://world.openfoodfacts.org) (open data, CC BY-SA, credited in the footer), linked by URL. In the dashboard a product can get a photo by upload, by link, or just by its barcode (looked up on Open Food Facts). Products without a photo keep the coloured tile. Before launch, the seller's own photos are the safest choice.
 
 ## Develop
 ```bash

@@ -6,6 +6,7 @@ import { slugify } from "@/lib/config";
 import { useStore } from "@/lib/store";
 import { formatDh, lotSaving } from "@/lib/shop";
 import { ProductTile } from "@/components/ProductTile";
+import { fileToDataUrl } from "@/lib/product-image";
 import { Field, Modal, Toggle, inputCls, num } from "@/components/admin/ui";
 
 const tags: { value: Product["tag"] | ""; label: string }[] = [
@@ -46,6 +47,34 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
           </Field>
         </div>
       </div>
+      <div className="grid gap-3 rounded-xl bg-paper p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <Field label="Code-barres (EAN)" hint="Si aucune photo n'est ajoutée, celle d'Open Food Facts est utilisée.">
+          <input className={inputCls} inputMode="numeric" value={p.barcode ?? ""} onChange={(e) => set({ barcode: e.target.value.replace(/\D/g, "") || undefined })} placeholder="6111…" />
+        </Field>
+        <Field label="Photo (lien)">
+          <input className={inputCls} value={p.image?.startsWith("data:") ? "Photo importée" : (p.image ?? "")} readOnly={p.image?.startsWith("data:")} onChange={(e) => set({ image: e.target.value.trim() || undefined })} placeholder="https://…" />
+        </Field>
+        <div className="flex gap-2">
+          <label className="cursor-pointer rounded-lg bg-navy-900 px-3 py-2 text-sm font-semibold text-white">
+            Importer
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) set({ image: await fileToDataUrl(file) });
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {p.image && (
+            <button type="button" onClick={() => set({ image: undefined })} className="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold">
+              Retirer
+            </button>
+          )}
+        </div>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Catégorie">
           <select className={inputCls} value={p.category} onChange={(e) => set({ category: e.target.value })}>
@@ -61,7 +90,7 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
             ))}
           </select>
         </Field>
-        <Field label="Couleur de la vignette">
+        <Field label="Couleur (si pas de photo)">
           <input type="color" className="h-[38px] w-full cursor-pointer rounded-lg border border-line bg-white p-1" value={p.color} onChange={(e) => set({ color: e.target.value })} />
         </Field>
       </div>

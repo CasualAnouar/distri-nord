@@ -12,6 +12,9 @@ export function Footer() {
         <span>
           {settings.storeName[locale]} · {settings.tagline[locale]}
         </span>
+        <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="text-xs hover:underline">
+          {locale === "ar" ? "صور المنتجات: Open Food Facts (CC BY-SA)" : "Photos produits : Open Food Facts (CC BY-SA)"}
+        </a>
       </div>
     </footer>
   );
