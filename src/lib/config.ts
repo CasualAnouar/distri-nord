@@ -27,7 +27,7 @@ export const defaultSettings: Settings = {
     fr: "Boissons, snacks, épicerie et hygiène aux prix de gros. Paiement à la livraison, suivi sur WhatsApp.",
     ar: "مشروبات، وجبات خفيفة، بقالة ومواد التنظيف بأثمنة الجملة. الدفع عند الاستلام، والتتبع عبر واتساب.",
   },
-  sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 00 00 00 00",
+  sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 08 25 23 28",
   minCart: 100,
   lowStockAt: 120,
   deliveryWindow: { fr: "aujourd'hui entre 14h et 18h", ar: "اليوم بين 14:00 و 18:00" },
