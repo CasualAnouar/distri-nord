@@ -3,15 +3,33 @@
 import { useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
-import { conversation, type ChatView } from "@/lib/whatsapp";
-import type { Order } from "@/lib/shop";
+import { conversation, type ChatButton, type ChatView } from "@/lib/whatsapp";
+import { cities, type Order } from "@/lib/shop";
 import { WhatsAppPhone } from "./WhatsAppPhone";
 
 // Buyer and seller phones side by side on desktop, tabs on mobile.
 export function OrderChats({ order, initial = "buyer" }: { order: Order; initial?: ChatView }) {
   const { locale, t } = useLocale();
-  const { setStatus } = useStore();
+  const { setStatus, confirmAddress } = useStore();
   const [view, setView] = useState<ChatView>(initial);
+  const [writing, setWriting] = useState(false);
+  const ar = locale === "ar";
+
+  // Demo stand-in for WhatsApp's location share: a pin near the chosen city's centre.
+  const sharePosition = () => {
+    const c = cities.find((x) => x.id === order.customer.city) ?? cities[0];
+    const jitter = () => (Math.random() - 0.5) * 0.02;
+    confirmAddress(order.id, { via: "location", lat: +(c.lat + jitter()).toFixed(5), lng: +(c.lng + jitter()).toFixed(5) });
+  };
+
+  const onButton = (v: ChatView) => (b: ChatButton) => {
+    const a = b.action;
+    if (!a) return;
+    if (a.kind === "status") setStatus(order.id, a.to);
+    else if (a.kind === "confirm") confirmAddress(order.id, { via: "button" });
+    else if (a.kind === "location") sharePosition();
+    else if (a.kind === "write" && v === "buyer") setWriting(true);
+  };
   const dir = locale === "ar" ? "rtl" : "ltr";
 
   const phone = (v: ChatView) => (
@@ -19,7 +37,19 @@ export function OrderChats({ order, initial = "buyer" }: { order: Order; initial
       title={v === "buyer" ? "Distri Nord" : locale === "ar" ? "ديستري نور · البائع" : "Distri Nord · Vendeur"}
       subtitle={v === "buyer" ? (locale === "ar" ? "حساب تجاري" : "Compte professionnel") : locale === "ar" ? "إشعارات الطلبات" : "Alertes commandes"}
       messages={conversation(order, v, locale)}
-      onButton={(b) => b.next && setStatus(order.id, b.next)}
+      onButton={onButton(v)}
+      composer={
+        v === "buyer" && writing && order.status === "new"
+          ? {
+              placeholder: ar ? "مثال: زنقة 5، رقم 21، قرب الحمام" : "Ex : Rue 5, n° 21, à côté du hammam",
+              onSend: (text) => {
+                setWriting(false);
+                confirmAddress(order.id, { via: "text", text });
+              },
+              onCancel: () => setWriting(false),
+            }
+          : undefined
+      }
       dir={dir}
     />
   );

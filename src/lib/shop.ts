@@ -31,17 +31,23 @@ export type Order = {
   customer: Customer;
   status: OrderStatus;
   history: { status: OrderStatus; at: string }[];
+  addressReply?: AddressReply;
 };
 
+// How the buyer answered the address question on WhatsApp.
+export type AddressReply = { via: "button" } | { via: "text"; text: string } | { via: "location"; lat: number; lng: number };
+
+export const mapsUrl = (lat: number, lng: number) => `https://maps.google.com/?q=${lat},${lng}`;
+
 // Northern delivery zones. Fees are placeholders.
-export const cities: { id: string; fr: string; ar: string; fee: number; freeFrom: number }[] = [
-  { id: "tanger", fr: "Tanger", ar: "طنجة", fee: 0, freeFrom: 0 },
-  { id: "tetouan", fr: "Tétouan", ar: "تطوان", fee: 15, freeFrom: 300 },
-  { id: "mdiq", fr: "M'diq", ar: "المضيق", fee: 15, freeFrom: 300 },
-  { id: "martil", fr: "Martil", ar: "مرتيل", fee: 15, freeFrom: 300 },
-  { id: "fnideq", fr: "Fnideq", ar: "الفنيدق", fee: 20, freeFrom: 400 },
-  { id: "asilah", fr: "Asilah", ar: "أصيلة", fee: 20, freeFrom: 400 },
-  { id: "larache", fr: "Larache", ar: "العرائش", fee: 25, freeFrom: 500 },
+export const cities: { id: string; fr: string; ar: string; fee: number; freeFrom: number; lat: number; lng: number }[] = [
+  { id: "tanger", fr: "Tanger", ar: "طنجة", fee: 0, freeFrom: 0, lat: 35.7595, lng: -5.834 },
+  { id: "tetouan", fr: "Tétouan", ar: "تطوان", fee: 15, freeFrom: 300, lat: 35.5785, lng: -5.3684 },
+  { id: "mdiq", fr: "M'diq", ar: "المضيق", fee: 15, freeFrom: 300, lat: 35.6858, lng: -5.3253 },
+  { id: "martil", fr: "Martil", ar: "مرتيل", fee: 15, freeFrom: 300, lat: 35.6167, lng: -5.2752 },
+  { id: "fnideq", fr: "Fnideq", ar: "الفنيدق", fee: 20, freeFrom: 400, lat: 35.8498, lng: -5.357 },
+  { id: "asilah", fr: "Asilah", ar: "أصيلة", fee: 20, freeFrom: 400, lat: 35.465, lng: -6.0353 },
+  { id: "larache", fr: "Larache", ar: "العرائش", fee: 25, freeFrom: 500, lat: 35.1932, lng: -6.1557 },
 ];
 
 // The one seller: Distri Nord takes every order and delivers it. Set the real number on Vercel.

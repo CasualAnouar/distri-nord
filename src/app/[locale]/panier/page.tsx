@@ -17,6 +17,7 @@ export default function CartPage() {
   const [form, setForm] = useState<Customer>(empty);
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
+  const [viaWa, setViaWa] = useState(false);
 
   const totals = cartTotals(cart, getProduct, form.city);
   const phone = normalizePhone(form.phone);
@@ -24,8 +25,8 @@ export default function CartPage() {
     name: !form.name.trim(),
     phone: !phone,
     city: !form.city,
-    district: !form.district.trim(),
-    address: !form.address.trim(),
+    district: !viaWa && !form.district.trim(),
+    address: !viaWa && !form.address.trim(),
   };
   const valid = !Object.values(errors).some(Boolean) && totals.missing === 0;
 
@@ -34,7 +35,8 @@ export default function CartPage() {
     setTouched(true);
     if (!valid) return;
     setSending(true);
-    const order = placeOrder({ ...form, phone: phone! }, locale);
+    const customer = viaWa ? { ...form, district: "", address: "", landmark: "" } : form;
+    const order = placeOrder({ ...customer, phone: phone! }, locale);
     router.push(`/${locale}/commande/${order.id}`);
   };
 
@@ -136,11 +138,22 @@ export default function CartPage() {
           </select>
           {touched && errors.city && <span className="mt-1 block text-xs text-danger">{t.required}</span>}
         </label>
-        <div className="grid grid-cols-2 gap-3">
-          {field("district", t.district)}
-          {field("address", t.address, { auto: "street-address" })}
-        </div>
-        {field("landmark", t.landmark, { hint: t.landmarkHint, optional: true })}
+        <label className="flex items-start gap-3 rounded-xl border border-wa/40 bg-wa/5 p-3">
+          <input type="checkbox" checked={viaWa} onChange={(e) => setViaWa(e.target.checked)} className="mt-1 size-4 accent-wa" />
+          <span>
+            <span className="block text-sm font-semibold">{t.addressViaWa}</span>
+            {viaWa && <span className="mt-1 block text-xs text-muted">{t.addressViaWaHint}</span>}
+          </span>
+        </label>
+        {!viaWa && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              {field("district", t.district)}
+              {field("address", t.address, { auto: "street-address" })}
+            </div>
+            {field("landmark", t.landmark, { hint: t.landmarkHint, optional: true })}
+          </>
+        )}
         {field("note", t.note, { optional: true })}
 
         <dl className="space-y-1 border-t border-line pt-4 text-sm">

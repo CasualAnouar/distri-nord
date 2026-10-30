@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { products, type Product } from "@/data/products";
-import { cartTotals, cities, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
+import { cartTotals, cities, type AddressReply, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
 
 // Demo persistence: everything lives in this browser's localStorage and syncs across tabs,
@@ -22,6 +22,7 @@ type Store = {
   orders: Order[];
   placeOrder: (customer: Customer, locale: "fr" | "ar") => Order;
   setStatus: (orderId: string, status: OrderStatus) => void;
+  confirmAddress: (orderId: string, reply: AddressReply) => void;
   updateProduct: (id: string, patch: Overrides[string]) => void;
   resetDemo: () => void;
 };
@@ -158,6 +159,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const confirmAddress = (orderId: string, reply: AddressReply) => {
+    saveOrders(
+      orders.map((o) =>
+        o.id === orderId && o.status === "new"
+          ? { ...o, addressReply: reply, status: "confirmed", history: [...o.history, { status: "confirmed", at: new Date().toISOString() }] }
+          : o,
+      ),
+    );
+  };
+
   const updateProduct = (id: string, patch: Overrides[string]) => {
     const next = { ...overrides, [id]: { ...overrides[id], ...patch } };
     setOverrides(next);
@@ -182,6 +193,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     orders,
     placeOrder,
     setStatus,
+    confirmAddress,
     updateProduct,
     resetDemo,
   };

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { cities, formatDh, type Order, type OrderStatus } from "@/lib/shop";
+import { cities, formatDh, mapsUrl, type Order, type OrderStatus } from "@/lib/shop";
 import { dicts } from "@/i18n/dict";
 import { OrderChats } from "@/components/OrderChats";
 
@@ -15,7 +15,7 @@ const badge: Record<OrderStatus, string> = {
   cancelled: "bg-danger/10 text-danger",
 };
 const nextAction: Partial<Record<OrderStatus, { to: OrderStatus; label: string }>> = {
-  new: { to: "confirmed", label: "✅ Confirmer (client au tél.)" },
+  new: { to: "confirmed", label: "✅ Confirmer l'adresse (client au tél.)" },
   confirmed: { to: "shipping", label: "🚚 Lancer la livraison" },
   shipping: { to: "delivered", label: "📦 Marquer livrée" },
 };
@@ -77,7 +77,7 @@ export default function AdminOrders() {
                 <span className="font-mono text-sm font-bold">{o.id}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${badge[o.status]}`}>{t.status[o.status]}</span>
                 <span className="min-w-0 flex-1 truncate text-sm">
-                  {o.customer.name} · {cities.find((c) => c.id === o.customer.city)?.fr}, {o.customer.district}
+                  {o.customer.name} · {cities.find((c) => c.id === o.customer.city)?.fr}{o.customer.district && `, ${o.customer.district}`}
                 </span>
                 <span className="text-xs text-muted">{ago(o.createdAt)}</span>
                 <span className="font-extrabold text-navy-900">{formatDh(o.total)}</span>
@@ -86,7 +86,17 @@ export default function AdminOrders() {
                 <div className="grid gap-4 border-t border-line bg-paper/60 p-4 md:grid-cols-2">
                   <div className="text-sm">
                     <p className="font-semibold">📞 <a href={`tel:${o.customer.phone}`} className="underline">{o.customer.phone}</a></p>
-                    <p className="mt-1">📍 {o.customer.address}, {o.customer.district}, {cities.find((c) => c.id === o.customer.city)?.fr}</p>
+                    <p className="mt-1">
+                      🏠 {o.customer.address ? `${o.customer.address}, ${o.customer.district}, ` : ""}
+                      {cities.find((c) => c.id === o.customer.city)?.fr}
+                      {!o.customer.address && !o.addressReply && <span className="text-warn"> · adresse attendue sur WhatsApp</span>}
+                    </p>
+                    {o.addressReply?.via === "location" && (
+                      <a href={mapsUrl(o.addressReply.lat, o.addressReply.lng)} target="_blank" rel="noreferrer" className="mt-1 inline-block font-semibold text-sky-700 underline">
+                        📍 Position WhatsApp · ouvrir dans Maps
+                      </a>
+                    )}
+                    {o.addressReply?.via === "text" && <p className="mt-1">✏️ Adresse écrite sur WhatsApp : {o.addressReply.text}</p>}
                     {o.customer.landmark && <p className="mt-1 text-muted">Repère : {o.customer.landmark}</p>}
                     {o.customer.note && <p className="mt-1 text-muted">📝 {o.customer.note}</p>}
                     <ul className="mt-3 space-y-1">
