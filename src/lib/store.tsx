@@ -5,9 +5,23 @@ import type { Category, Product } from "@/data/products";
 import { defaultConfig, withDefaults, type City, type Config, type Settings } from "./config";
 import { cartTotals, type AddressReply, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
+import {
+  fetchFullConfig,
+  subscribeToOrders,
+  placeOrderInFirestore,
+  setOrderStatusInFirestore,
+  confirmOrderAddressInFirestore,
+  saveSettingsDoc,
+  saveCityDoc,
+  removeCityDoc,
+  saveCategoryDoc,
+  removeCategoryDoc,
+  saveProductDoc,
+  updateProductDoc,
+  removeProductDoc,
+  resetDemoInFirestore,
+} from "./firestore-service";
 
-// Demo persistence: everything lives in this browser's localStorage and syncs across tabs,
-// so the shop and the dashboard open side by side behave like one system. Supabase replaces this later.
 const KEYS = { cart: "dn2_cart", orders: "dn2_orders", config: "dn4_config" } as const;
 
 type Store = {
@@ -42,8 +56,10 @@ const Ctx = createContext<Store | null>(null);
 
 function read<T>(key: string, fallback: T): T {
   try {
+    if (typeof window === "undefined" || !window.localStorage) return fallback;
     const v = localStorage.getItem(key);
-    return v ? (JSON.parse(v) as T) : fallback;
+    if (!v || !v.trim()) return fallback;
+    return JSON.parse(v) as T;
   } catch {
     return fallback;
   }
@@ -64,22 +80,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<Config>(defaultConfig);
 
   useEffect(() => {
-    const load = () => {
-      setCart(read(KEYS.cart, []));
-      setOrders(read(KEYS.orders, sampleOrders()));
-      setConfig(withDefaults(read<Partial<Config> | null>(KEYS.config, null)));
-    };
-    // Read storage after hydration so server and client render the same first frame.
-    const first = requestAnimationFrame(() => {
-      load();
-      setReady(true);
+    // 1. Immediate local cache hydration so first render is fast and consistent
+    setCart(read(KEYS.cart, []));
+    setOrders(read(KEYS.orders, sampleOrders()));
+    setConfig(withDefaults(read<Partial<Config> | null>(KEYS.config, null)));
+    setReady(true);
+
+    // 2. Fetch live config from Firestore
+    fetchFullConfig()
+      .then((cloudConfig) => {
+        setConfig(cloudConfig);
+        write(KEYS.config, cloudConfig);
+      })
+      .catch((err) => {
+        console.warn("Error syncing cloud config:", err);
+      });
+
+    // 3. Real-time subscription to orders from Firestore
+    const unsubOrders = subscribeToOrders((cloudOrders) => {
+      setOrders(cloudOrders);
+      write(KEYS.orders, cloudOrders);
     });
+
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || Object.values(KEYS).includes(e.key as never)) load();
+      if (e.key === KEYS.cart) {
+        setCart(read(KEYS.cart, []));
+      }
     };
     window.addEventListener("storage", onStorage);
+
     return () => {
-      cancelAnimationFrame(first);
+      unsubOrders();
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -137,59 +168,104 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       status: "new",
       history: [{ status: "new", at: now }],
     };
-    // Reserve stock at order time.
+
+    // Decrement stock locally & in cloud
     const used = new Map<string, number>();
     for (const l of order.lines) used.set(l.productId, (used.get(l.productId) ?? 0) + l.unitsPerLine * l.qty);
-    saveConfig({ ...config, products: config.products.map((p) => (used.has(p.id) ? { ...p, stock: Math.max(0, p.stock - used.get(p.id)!) } : p)) });
+    const updatedProducts = config.products.map((p) =>
+      used.has(p.id) ? { ...p, stock: Math.max(0, p.stock - used.get(p.id)!) } : p
+    );
+    saveConfig({ ...config, products: updatedProducts });
     saveOrders([order, ...orders]);
     saveCart([]);
+
+    // Cloud firestore write
+    placeOrderInFirestore(order, config.products).catch((err) => {
+      console.warn("Firestore order placement error:", err);
+    });
+
     return order;
   };
 
   const setStatus = (orderId: string, status: OrderStatus) => {
+    const newHistory = [
+      ...(orders.find((o) => o.id === orderId)?.history ?? []),
+      { status, at: new Date().toISOString() },
+    ];
     saveOrders(
-      orders.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              status,
-              history: [...o.history, { status, at: new Date().toISOString() }],
-            }
-          : o,
-      ),
+      orders.map((o) => (o.id === orderId ? { ...o, status, history: newHistory } : o)),
     );
+    setOrderStatusInFirestore(orderId, status, newHistory).catch((err) => {
+      console.warn("Firestore setStatus error:", err);
+    });
   };
 
   const confirmAddress = (orderId: string, reply: AddressReply) => {
+    const newHistory = [
+      ...(orders.find((o) => o.id === orderId)?.history ?? []),
+      { status: "confirmed" as OrderStatus, at: new Date().toISOString() },
+    ];
     saveOrders(
       orders.map((o) =>
         o.id === orderId && o.status === "new"
-          ? { ...o, addressReply: reply, status: "confirmed", history: [...o.history, { status: "confirmed", at: new Date().toISOString() }] }
+          ? { ...o, addressReply: reply, status: "confirmed", history: newHistory }
           : o,
       ),
     );
+    confirmOrderAddressInFirestore(orderId, reply, newHistory).catch((err) => {
+      console.warn("Firestore confirmAddress error:", err);
+    });
   };
 
   const upsert = <T extends { id: string }>(list: T[], item: T) =>
     list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item];
 
-  const saveSettings = (patch: Partial<Settings>) => saveConfig({ ...config, settings: { ...config.settings, ...patch } });
-  const saveCity = (city: City) => saveConfig({ ...config, cities: upsert(config.cities, city) });
-  const removeCity = (id: string) => saveConfig({ ...config, cities: config.cities.filter((c) => c.id !== id) });
-  const saveCategory = (cat: Category) => saveConfig({ ...config, categories: upsert(config.categories, cat) });
-  const removeCategory = (id: string) => saveConfig({ ...config, categories: config.categories.filter((c) => c.id !== id) });
-  const saveProduct = (p: Product) => saveConfig({ ...config, products: upsert(config.products, p) });
-  const updateProduct = (id: string, patch: Partial<Product>) =>
+  const saveSettings = (patch: Partial<Settings>) => {
+    saveConfig({ ...config, settings: { ...config.settings, ...patch } });
+    saveSettingsDoc(patch).catch((err) => console.warn("Firestore saveSettings error:", err));
+  };
+
+  const saveCity = (city: City) => {
+    saveConfig({ ...config, cities: upsert(config.cities, city) });
+    saveCityDoc(city).catch((err) => console.warn("Firestore saveCity error:", err));
+  };
+
+  const removeCity = (id: string) => {
+    saveConfig({ ...config, cities: config.cities.filter((c) => c.id !== id) });
+    removeCityDoc(id).catch((err) => console.warn("Firestore removeCity error:", err));
+  };
+
+  const saveCategory = (cat: Category) => {
+    saveConfig({ ...config, categories: upsert(config.categories, cat) });
+    saveCategoryDoc(cat).catch((err) => console.warn("Firestore saveCategory error:", err));
+  };
+
+  const removeCategory = (id: string) => {
+    saveConfig({ ...config, categories: config.categories.filter((c) => c.id !== id) });
+    removeCategoryDoc(id).catch((err) => console.warn("Firestore removeCategory error:", err));
+  };
+
+  const saveProduct = (p: Product) => {
+    saveConfig({ ...config, products: upsert(config.products, p) });
+    saveProductDoc(p).catch((err) => console.warn("Firestore saveProduct error:", err));
+  };
+
+  const updateProduct = (id: string, patch: Partial<Product>) => {
     saveConfig({ ...config, products: config.products.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+    updateProductDoc(id, patch).catch((err) => console.warn("Firestore updateProduct error:", err));
+  };
+
   const removeProduct = (id: string) => {
     saveConfig({ ...config, products: config.products.filter((p) => p.id !== id) });
     saveCart(cart.filter((l) => l.productId !== id));
+    removeProductDoc(id).catch((err) => console.warn("Firestore removeProduct error:", err));
   };
 
   const resetDemo = () => {
     saveCart([]);
     saveOrders(sampleOrders());
     saveConfig(defaultConfig);
+    resetDemoInFirestore().catch((err) => console.warn("Firestore resetDemo error:", err));
   };
 
   const value: Store = {

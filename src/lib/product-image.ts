@@ -10,7 +10,10 @@ const pending = new Map<string, Promise<string>>();
 
 function readCache(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+    if (typeof window === "undefined" || !window.localStorage) return {};
+    const item = localStorage.getItem(CACHE_KEY);
+    if (!item || !item.trim()) return {};
+    return JSON.parse(item);
   } catch {
     return {};
   }
