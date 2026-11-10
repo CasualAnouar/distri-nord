@@ -69,6 +69,23 @@ function GeneralSettings() {
         </div>
       </Card>
 
+      <Card title="Achat en gros" subtitle="Deuxième boutique pour les grosses commandes (épiceries, cafés…), à l'adresse /fr/gros. La boutique principale reste pour les particuliers.">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-xl bg-paper p-3">
+            <Toggle checked={s.wholesaleEnabled} onChange={(wholesaleEnabled) => set({ wholesaleEnabled })} label="Achat en gros actif" />
+            <span className="text-sm font-semibold">{s.wholesaleEnabled ? "Achat en gros ouvert (prix par lot)" : "Achat en gros fermé"}</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Minimum de commande en gros (DH)" hint="S'applique dès qu'un lot est dans le panier. Jamais en dessous du minimum normal.">
+              <input type="number" min={0} className={inputCls} value={s.wholesaleMinCart} onChange={(e) => set({ wholesaleMinCart: num(e.target.value) })} />
+            </Field>
+          </div>
+          <LocalizedInputs label="Titre de l'espace gros" value={s.wholesaleTitle} onChange={(wholesaleTitle) => set({ wholesaleTitle })} textarea />
+          <LocalizedInputs label="Texte de l'espace gros" value={s.wholesaleText} onChange={(wholesaleText) => set({ wholesaleText })} textarea />
+          <p className="text-xs text-muted">Les prix des lots se règlent dans « Produits & stock ».</p>
+        </div>
+      </Card>
+
       <div className="sticky bottom-3 z-10 flex items-center justify-end gap-3 rounded-2xl border border-line bg-white/95 p-3 shadow-lg backdrop-blur">
         {saved && !dirty && <span className="text-sm font-semibold text-ok">✓ Enregistré</span>}
         {dirty && (

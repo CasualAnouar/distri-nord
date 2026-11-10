@@ -25,7 +25,7 @@ const ago = (iso: string) => {
 };
 
 export default function AdminOrders() {
-  const { ready, orders, setStatus } = useStore();
+  const { ready, orders, setStatus, getProduct } = useStore();
   const cityName = useCityName();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -77,6 +77,7 @@ export default function AdminOrders() {
               <button onClick={() => setOpen(isOpen ? null : o.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 p-4 text-start">
                 <span className="font-mono text-sm font-bold">{o.id}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${badge[o.status]}`}>{t.status[o.status]}</span>
+                {o.channel === "gros" && <span className="rounded-full bg-navy-900 px-2 py-0.5 text-xs font-bold text-white">Gros</span>}
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {o.customer.name} · {cityName(o.customer.city)}{o.customer.district && `, ${o.customer.district}`}
                 </span>
@@ -103,7 +104,10 @@ export default function AdminOrders() {
                     <ul className="mt-3 space-y-1">
                       {o.lines.map((l) => (
                         <li key={`${l.productId}-${l.mode}`} className="flex justify-between gap-2">
-                          <span>{l.qty} × {l.name} {l.mode === "lot" ? `(lot ${l.unitsPerLine})` : ""}</span>
+                          <span>
+                            {l.qty} × {l.name} {l.mode === "lot" ? `(lot ${l.unitsPerLine})` : l.mode === "box" ? "(box)" : ""}
+                            {l.items && <span className="block text-xs text-muted">{l.items.map((it) => `${it.qty * l.qty} × ${getProduct(it.productId)?.name ?? it.productId}`).join(" · ")}</span>}
+                          </span>
                           <span className="font-semibold">{formatDh(l.price)}</span>
                         </li>
                       ))}

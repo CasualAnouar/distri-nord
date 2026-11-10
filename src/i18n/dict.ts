@@ -58,12 +58,25 @@ const fr = {
   demoNote: "Démo : les boutons dans la conversation font avancer la commande, comme le ferait le vrai WhatsApp.",
   howTitle: "Comment ça marche",
   how: [
-    ["🛒", "Remplissez votre panier", "En lot pour le prix de gros, ou à la pièce. Minimum {min}."],
+    ["🛒", "Remplissez votre panier", "À la pièce, en box, ou en lot dans l'espace gros. Minimum {min}."],
     ["💬", "Confirmez sur WhatsApp", "Validez votre adresse, partagez votre position ou écrivez-la dans un message."],
     ["🚚", "Suivez la livraison", "Vous êtes prévenu quand votre commande part et quand elle arrive."],
     ["💵", "Payez à la réception", "En espèces, à la réception. Rien à payer en ligne."],
   ],
   language: "العربية",
+  wholesale: "Achat en gros",
+  retail: "Boutique",
+  wholesaleOff: "L'achat en gros n'est pas disponible pour le moment.",
+  backToShop: "Retour à la boutique",
+  wholesaleHint: (price: string, n: number) => `En gros : ${price} / pièce par lot de ${n}`,
+  wholesaleBanner: (min: string) => `Vous achetez en grande quantité ? Prix de gros par lot, dès ${min} de commande.`,
+  wholesaleCart: (min: string) => `Commande en gros (lots) : minimum ${min}.`,
+  boxesTitle: "Nos box",
+  boxesText: "Des produits assortis, prêts à commander, moins chers qu'à la pièce.",
+  boxWorth: "au lieu de",
+  box: "Box",
+  boxContents: (n: number) => `${n} articles`,
+  perksGros: (min: string, zones: string) => ["Prix de gros par lot", `Dès ${min} de commande`, "Paiement à la livraison", `Livraison ${zones}`],
 };
 
 type Dict = typeof fr;
@@ -121,12 +134,25 @@ const ar: Dict = {
   demoNote: "عرض تجريبي: الأزرار داخل المحادثة تُقدّم الطلب كما سيفعل واتساب الحقيقي.",
   howTitle: "كيف يعمل",
   how: [
-    ["🛒", "املأ سلتك", "بالجملة بثمن أقل، أو بالحبة. الحد الأدنى {min}."],
+    ["🛒", "املأ سلتك", "بالحبة، بالبوكس، أو بالعلبة في فضاء الجملة. الحد الأدنى {min}."],
     ["💬", "أكّد عبر واتساب", "أكّد عنوانك، أرسل موقعك أو اكتبه في رسالة."],
     ["🚚", "تتبع التوصيل", "نخبرك عند خروج طلبك وعند وصوله."],
     ["💵", "ادفع عند الاستلام", "نقداً عند الاستلام. لا دفع عبر الإنترنت."],
   ],
   language: "Français",
+  wholesale: "الشراء بالجملة",
+  retail: "المتجر",
+  wholesaleOff: "الشراء بالجملة غير متوفر حالياً.",
+  backToShop: "الرجوع إلى المتجر",
+  wholesaleHint: (price: string, n: number) => `بالجملة: ${price} للحبة في علبة ${n}`,
+  wholesaleBanner: (min: string) => `كتشري بكمية كبيرة؟ ثمن الجملة بالعلبة، ابتداءً من ${min}.`,
+  wholesaleCart: (min: string) => `طلب بالجملة (علب): الحد الأدنى ${min}.`,
+  boxesTitle: "البوكسات ديالنا",
+  boxesText: "منتجات مجموعة، واجدة للطلب، أرخص من الشراء بالحبة.",
+  boxWorth: "بدل",
+  box: "بوكس",
+  boxContents: (n: number) => `${n} منتجات`,
+  perksGros: (min: string, zones: string) => ["ثمن الجملة بالعلبة", `الطلب من ${min}`, "الدفع عند الاستلام", `التوصيل في ${zones}`],
 };
 
 export const dicts: Record<Locale, Dict> = { fr, ar };

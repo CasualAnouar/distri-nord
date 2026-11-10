@@ -27,6 +27,7 @@ import {
   type Category,
   type Product,
 } from "@/data/products";
+import { defaultBoxes, type Box } from "@/data/boxes";
 import { type AddressReply, type Customer, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
 
@@ -36,7 +37,20 @@ const COLLECTIONS = {
   categories: "categories",
   products: "products",
   orders: "orders",
+  boxes: "boxes",
 } as const;
+
+// Boxes are read on their own so that a database whose rules predate them (permission denied)
+// still loads the rest of the shop.
+async function fetchBoxes(): Promise<Box[]> {
+  try {
+    const snap = await getDocs(collection(db, COLLECTIONS.boxes));
+    return snap.empty ? defaultBoxes : snap.docs.map((d) => d.data() as Box);
+  } catch (err) {
+    console.warn("Firestore boxes fallback to defaults:", err);
+    return defaultBoxes;
+  }
+}
 
 export async function seedInitialFirestoreData(): Promise<void> {
   const settingsRef = doc(db, COLLECTIONS.settings, "global");
@@ -63,7 +77,12 @@ export async function seedInitialFirestoreData(): Promise<void> {
       batch.set(doc(db, COLLECTIONS.products, prod.id), prod);
     }
 
-    // 5. Sample orders
+    // 5. Boxes
+    for (const box of defaultBoxes) {
+      batch.set(doc(db, COLLECTIONS.boxes, box.id), box);
+    }
+
+    // 6. Sample orders
     const initialOrders = sampleOrders();
     for (const ord of initialOrders) {
       batch.set(doc(db, COLLECTIONS.orders, ord.id), ord);
@@ -75,11 +94,12 @@ export async function seedInitialFirestoreData(): Promise<void> {
 
 export async function fetchFullConfig(): Promise<Config> {
   try {
-    const [settingsSnap, citiesSnap, catsSnap, prodsSnap] = await Promise.all([
+    const [settingsSnap, citiesSnap, catsSnap, prodsSnap, boxes] = await Promise.all([
       getDoc(doc(db, COLLECTIONS.settings, "global")),
       getDocs(collection(db, COLLECTIONS.cities)),
       getDocs(collection(db, COLLECTIONS.categories)),
       getDocs(collection(db, COLLECTIONS.products)),
+      fetchBoxes(),
     ]);
 
     if (!settingsSnap.exists() || prodsSnap.empty) {
@@ -97,6 +117,7 @@ export async function fetchFullConfig(): Promise<Config> {
       cities: cities.length > 0 ? cities : defaultCities,
       categories: categories.length > 0 ? categories : defaultCategories,
       products: products.length > 0 ? products : defaultProducts,
+      boxes,
     };
   } catch (err) {
     console.warn("Firestore fetchFullConfig fallback to defaults:", err);
@@ -141,6 +162,14 @@ export async function removeProductDoc(id: string): Promise<void> {
   await deleteDoc(doc(db, COLLECTIONS.products, id));
 }
 
+export async function saveBoxDoc(box: Box): Promise<void> {
+  await setDoc(doc(db, COLLECTIONS.boxes, box.id), box);
+}
+
+export async function removeBoxDoc(id: string): Promise<void> {
+  await deleteDoc(doc(db, COLLECTIONS.boxes, id));
+}
+
 export async function fetchAllOrders(): Promise<Order[]> {
   try {
     const q = query(collection(db, COLLECTIONS.orders), orderBy("createdAt", "desc"));
@@ -169,26 +198,13 @@ export function subscribeToOrders(onUpdate: (orders: Order[]) => void): Unsubscr
   );
 }
 
-export async function placeOrderInFirestore(order: Order, products: Product[]): Promise<void> {
+/** Writes the order and the new stock of each product it used, in one batch. */
+export async function placeOrderInFirestore(order: Order, newStock: Map<string, number>): Promise<void> {
   const batch = writeBatch(db);
-
-  // 1. Create order doc
   batch.set(doc(db, COLLECTIONS.orders, order.id), order);
-
-  // 2. Decrement product stock
-  const used = new Map<string, number>();
-  for (const line of order.lines) {
-    used.set(line.productId, (used.get(line.productId) ?? 0) + line.unitsPerLine * line.qty);
+  for (const [productId, stock] of newStock) {
+    batch.update(doc(db, COLLECTIONS.products, productId), { stock });
   }
-
-  for (const [productId, qtyUsed] of used.entries()) {
-    const prod = products.find((p) => p.id === productId);
-    if (prod) {
-      const newStock = Math.max(0, prod.stock - qtyUsed);
-      batch.update(doc(db, COLLECTIONS.products, productId), { stock: newStock });
-    }
-  }
-
   await batch.commit();
 }
 
@@ -228,6 +244,11 @@ export async function resetDemoInFirestore(): Promise<void> {
   // Reset products
   for (const prod of defaultProducts) {
     batch.set(doc(db, COLLECTIONS.products, prod.id), prod);
+  }
+
+  // Reset boxes
+  for (const box of defaultBoxes) {
+    batch.set(doc(db, COLLECTIONS.boxes, box.id), box);
   }
 
   // Reset orders with sample orders

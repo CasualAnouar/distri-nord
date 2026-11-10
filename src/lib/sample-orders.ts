@@ -1,8 +1,16 @@
 import { productById } from "@/data/products";
+import { defaultBoxes } from "@/data/boxes";
 import type { Customer, Mode, Order, OrderStatus } from "./shop";
 
 // A few orders so the seller dashboard is not empty on first open. Times are relative to now.
 const seeds: { id: string; minsAgo: number; status: OrderStatus; customer: Customer; lines: [string, Mode, number][] }[] = [
+  {
+    id: "DN-4826",
+    minsAgo: 4,
+    status: "new",
+    customer: { name: "Yassine Bennani", phone: "0655443322", city: "rabat", district: "Agdal", address: "Rue Oued Fès, imm. 3, appt 6", landmark: "Derrière le lycée", note: "" },
+    lines: [["box-energie", "box", 1], ["sidi-ali-15", "unit", 2]],
+  },
   {
     id: "DN-4821",
     minsAgo: 12,
@@ -40,6 +48,10 @@ export function sampleOrders(): Order[] {
   return seeds.map((s) => {
     const createdAt = new Date(now - s.minsAgo * 60_000).toISOString();
     const lines = s.lines.map(([id, mode, qty]) => {
+      if (mode === "box") {
+        const b = defaultBoxes.find((x) => x.id === id)!;
+        return { productId: id, mode, qty, name: b.name.fr, size: "Box", unitsPerLine: 1, price: b.price * qty, items: b.items };
+      }
       const p = productById.get(id)!;
       return { productId: id, mode, qty, name: p.name, size: p.size, unitsPerLine: mode === "lot" ? p.lot.qty : 1, price: (mode === "lot" ? p.lot.price : p.unitPrice) * qty };
     });
@@ -47,6 +59,7 @@ export function sampleOrders(): Order[] {
     const delivery = subtotal >= 200 ? 0 : (fees[s.customer.city] ?? 0);
     const steps = ["new", "confirmed", "shipping", "delivered"] as OrderStatus[];
     const history = steps.slice(0, steps.indexOf(s.status) + 1).map((status, i) => ({ status, at: new Date(now - (s.minsAgo - i * 8) * 60_000).toISOString() }));
-    return { id: s.id, createdAt, locale: "fr", lines, subtotal, delivery, total: subtotal + delivery, customer: s.customer, status: s.status, history };
+    const channel = lines.some((l) => l.mode === "lot") ? ("gros" as const) : ("detail" as const);
+    return { id: s.id, createdAt, locale: "fr", channel, lines, subtotal, delivery, total: subtotal + delivery, customer: s.customer, status: s.status, history };
   });
 }

@@ -5,8 +5,9 @@ import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { ProductCard } from "./ProductCard";
 import { ProductTile } from "./ProductTile";
+import type { Channel } from "@/lib/shop";
 
-export function Catalog() {
+export function Catalog({ channel = "detail" }: { channel?: Channel }) {
   const { locale, t } = useLocale();
   const { catalog, categories } = useStore();
   const [cat, setCat] = useState<string>("all");
@@ -52,7 +53,7 @@ export function Catalog() {
       ) : (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {list.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <ProductCard key={p.id} product={p} channel={channel} />
           ))}
         </div>
       )}

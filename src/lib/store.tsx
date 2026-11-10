@@ -2,8 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Category, Product } from "@/data/products";
+import type { Box } from "@/data/boxes";
 import { defaultConfig, withDefaults, type City, type Config, type Settings } from "./config";
-import { cartTotals, type AddressReply, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
+import { cartTotals, priceOf, stockUsage, type AddressReply, type CartLine, type Customer, type Lookup, type Mode, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
 import {
   fetchFullConfig,
@@ -19,6 +20,8 @@ import {
   saveProductDoc,
   updateProductDoc,
   removeProductDoc,
+  saveBoxDoc,
+  removeBoxDoc,
   resetDemoInFirestore,
 } from "./firestore-service";
 
@@ -31,7 +34,10 @@ type Store = {
   cities: City[]; // active zones only, for checkout
   categories: Category[];
   catalog: Product[]; // visible products only, for the shop
+  boxes: Box[]; // visible boxes only, for the shop
   getProduct: (id: string) => Product | undefined;
+  getBox: (id: string) => Box | undefined;
+  lookup: Lookup;
   cart: CartLine[];
   addToCart: (productId: string, mode: Mode, qty?: number) => void;
   setQty: (productId: string, mode: Mode, qty: number) => void;
@@ -49,6 +55,8 @@ type Store = {
   saveProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   removeProduct: (id: string) => void;
+  saveBox: (b: Box) => void;
+  removeBox: (id: string) => void;
   resetDemo: () => void;
 };
 
@@ -119,12 +127,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const activeCities = useMemo(() => config.cities.filter((c) => c.active), [config.cities]);
   const byId = useMemo(() => new Map(config.products.map((p) => [p.id, p])), [config.products]);
   const getProduct = useCallback((id: string) => byId.get(id), [byId]);
+  const boxById = useMemo(() => new Map(config.boxes.map((b) => [b.id, b])), [config.boxes]);
+  const getBox = useCallback((id: string) => boxById.get(id), [boxById]);
+  const lookup = useMemo<Lookup>(() => ({ product: getProduct, box: getBox }), [getProduct, getBox]);
+  // A box is shown only when every product in it still exists.
+  const visibleBoxes = useMemo(() => config.boxes.filter((b) => !b.hidden && b.items.length > 0 && b.items.every((it) => byId.has(it.productId))), [config.boxes, byId]);
 
   const saveConfig = (next: Config) => {
     setConfig(next);
     write(KEYS.config, next);
   };
-  const totals = (cityId?: string) => cartTotals(cart, getProduct, { cities: config.cities, minCart: config.settings.minCart, cityId });
+  const totals = (cityId?: string) =>
+    cartTotals(cart, lookup, {
+      cities: config.cities,
+      minCart: config.settings.minCart,
+      wholesaleMinCart: config.settings.wholesaleEnabled ? config.settings.wholesaleMinCart : 0,
+      cityId,
+    });
 
   const saveCart = (next: CartLine[]) => {
     setCart(next);
@@ -155,11 +174,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       id: `DN-${Math.floor(1000 + Math.random() * 9000)}`,
       createdAt: now,
       locale,
+      channel: t.channel,
       lines: cart.flatMap((l) => {
-        const p = getProduct(l.productId);
-        if (!p) return [];
-        const unitsPerLine = l.mode === "lot" ? p.lot.qty : 1;
-        return [{ ...l, name: p.name, size: p.size, unitsPerLine, price: (l.mode === "lot" ? p.lot.price : p.unitPrice) * l.qty }];
+        const price = priceOf(l, lookup);
+        if (price === null) return [];
+        if (l.mode === "box") {
+          const box = getBox(l.productId)!;
+          return [{ ...l, name: box.name[locale], size: "Box", unitsPerLine: 1, price, items: box.items }];
+        }
+        const p = getProduct(l.productId)!;
+        return [{ ...l, name: p.name, size: p.size, unitsPerLine: l.mode === "lot" ? p.lot.qty : 1, price }];
       }),
       subtotal: t.subtotal,
       delivery: t.delivery,
@@ -169,18 +193,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       history: [{ status: "new", at: now }],
     };
 
-    // Decrement stock locally & in cloud
-    const used = new Map<string, number>();
-    for (const l of order.lines) used.set(l.productId, (used.get(l.productId) ?? 0) + l.unitsPerLine * l.qty);
-    const updatedProducts = config.products.map((p) =>
-      used.has(p.id) ? { ...p, stock: Math.max(0, p.stock - used.get(p.id)!) } : p
-    );
+    // Take the pieces out of stock, boxes included, locally and in the cloud.
+    const used = stockUsage(cart, lookup);
+    const newStock = new Map<string, number>();
+    const updatedProducts = config.products.map((p) => {
+      if (!used.has(p.id)) return p;
+      const stock = Math.max(0, p.stock - used.get(p.id)!);
+      newStock.set(p.id, stock);
+      return { ...p, stock };
+    });
     saveConfig({ ...config, products: updatedProducts });
     saveOrders([order, ...orders]);
     saveCart([]);
 
-    // Cloud firestore write
-    placeOrderInFirestore(order, config.products).catch((err) => {
+    placeOrderInFirestore(order, newStock).catch((err) => {
       console.warn("Firestore order placement error:", err);
     });
 
@@ -261,6 +287,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     removeProductDoc(id).catch((err) => console.warn("Firestore removeProduct error:", err));
   };
 
+  const saveBox = (b: Box) => {
+    saveConfig({ ...config, boxes: upsert(config.boxes, b) });
+    saveBoxDoc(b).catch((err) => console.warn("Firestore saveBox error:", err));
+  };
+
+  const removeBox = (id: string) => {
+    saveConfig({ ...config, boxes: config.boxes.filter((b) => b.id !== id) });
+    saveCart(cart.filter((l) => !(l.mode === "box" && l.productId === id)));
+    removeBoxDoc(id).catch((err) => console.warn("Firestore removeBox error:", err));
+  };
+
   const resetDemo = () => {
     saveCart([]);
     saveOrders(sampleOrders());
@@ -275,7 +312,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     cities: activeCities,
     categories: config.categories,
     catalog,
+    boxes: visibleBoxes,
     getProduct,
+    getBox,
+    lookup,
     cart,
     addToCart,
     setQty,
@@ -293,6 +333,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     saveProduct,
     updateProduct,
     removeProduct,
+    saveBox,
+    removeBox,
     resetDemo,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

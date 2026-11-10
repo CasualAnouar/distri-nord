@@ -18,6 +18,10 @@ service cloud.firestore {
     match /products/{docId} {
       allow read, write: if true;
     }
+    // Bundles of products ("box")
+    match /boxes/{docId} {
+      allow read, write: if true;
+    }
     // Orders & tracking
     match /orders/{orderId} {
       allow read, write: if true;

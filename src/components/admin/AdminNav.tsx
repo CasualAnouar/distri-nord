@@ -10,6 +10,8 @@ import { useStore } from "@/lib/store";
 const links = [
   { href: "", label: "Commandes" },
   { href: "/produits", label: "Produits & stock" },
+  { href: "/box", label: "Box" },
+  { href: "/export", label: "Export" },
   { href: "/parametres", label: "Paramètres" },
 ];
 

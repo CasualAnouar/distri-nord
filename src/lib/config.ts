@@ -1,4 +1,5 @@
 import { defaultCategories, defaultProducts, type Category, type Product } from "@/data/products";
+import { defaultBoxes, type Box } from "@/data/boxes";
 
 // Everything the seller can change from the dashboard. Defaults seed a fresh demo.
 
@@ -15,22 +16,34 @@ export type Settings = {
   minCart: number;
   lowStockAt: number;
   deliveryWindow: Localized;
+  // Secondary shop for big purchases, by lot, at /{locale}/gros.
+  wholesaleEnabled: boolean;
+  wholesaleMinCart: number;
+  wholesaleTitle: Localized;
+  wholesaleText: Localized;
 };
 
-export type Config = { settings: Settings; cities: City[]; categories: Category[]; products: Product[] };
+export type Config = { settings: Settings; cities: City[]; categories: Category[]; products: Product[]; boxes: Box[] };
 
 export const defaultSettings: Settings = {
   storeName: { fr: "Distri Nord", ar: "ديستري نور" },
-  tagline: { fr: "Grossiste & distributeur à Rabat", ar: "بائع بالجملة وموزع في الرباط" },
-  heroTitle: { fr: "Votre stock livré chez vous, en lot ou à la pièce", ar: "سلعتك توصل لعندك، بالجملة أو بالتقسيط" },
+  tagline: { fr: "Vos courses livrées à Rabat", ar: "مشترياتك توصل لعندك في الرباط" },
+  heroTitle: { fr: "Vos boissons et courses livrées chez vous", ar: "مشروباتك ومشترياتك توصل حتى لباب الدار" },
   heroText: {
-    fr: "Boissons, snacks, épicerie et hygiène aux prix de gros. Paiement à la livraison, suivi sur WhatsApp.",
-    ar: "مشروبات، وجبات خفيفة، بقالة ومواد التنظيف بأثمنة الجملة. الدفع عند الاستلام، والتتبع عبر واتساب.",
+    fr: "Achetez à la pièce ou choisissez une box prête à petit prix. Paiement à la livraison, suivi sur WhatsApp.",
+    ar: "اشترِ بالحبة أو اختر بوكس واجد بثمن مناسب. الدفع عند الاستلام، والتتبع عبر واتساب.",
   },
   sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 08 25 23 28",
   minCart: 100,
   lowStockAt: 120,
   deliveryWindow: { fr: "aujourd'hui entre 14h et 18h", ar: "اليوم بين 14:00 و 18:00" },
+  wholesaleEnabled: true,
+  wholesaleMinCart: 500,
+  wholesaleTitle: { fr: "Achat en gros : lots et cartons au prix de gros", ar: "الشراء بالجملة: علب وكراطن بثمن الجملة" },
+  wholesaleText: {
+    fr: "Pour les épiceries, cafés, snacks et grosses commandes. Prix par lot, livraison à Rabat et environs, paiement à la livraison.",
+    ar: "للحوانت، المقاهي، السناك والطلبات الكبيرة. الثمن بالعلبة، التوصيل في الرباط ونواحيها، والدفع عند الاستلام.",
+  },
 };
 
 // Delivery zones around the Rabat store. Fees are placeholders.
@@ -44,7 +57,7 @@ export const defaultCities: City[] = [
   { id: "kenitra", fr: "Kénitra", ar: "القنيطرة", fee: 30, freeFrom: 500, lat: 34.261, lng: -6.5802, active: true },
 ];
 
-export const defaultConfig: Config = { settings: defaultSettings, cities: defaultCities, categories: defaultCategories, products: defaultProducts };
+export const defaultConfig: Config = { settings: defaultSettings, cities: defaultCities, categories: defaultCategories, products: defaultProducts, boxes: defaultBoxes };
 
 // Fills in anything a stored config from an older demo version lacks.
 export function withDefaults(stored: Partial<Config> | null): Config {
@@ -54,6 +67,7 @@ export function withDefaults(stored: Partial<Config> | null): Config {
     cities: stored.cities ?? defaultCities,
     categories: stored.categories ?? defaultCategories,
     products: stored.products ?? defaultProducts,
+    boxes: stored.boxes ?? defaultBoxes,
   };
 }
 
