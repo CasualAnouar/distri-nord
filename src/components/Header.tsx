@@ -27,7 +27,7 @@ export function Header() {
           {settings.wholesaleEnabled && (
             <Link
               href={inGros ? `/${locale}` : `/${locale}/gros`}
-              className={`rounded-full px-3 py-2 text-xs font-semibold sm:text-sm ${inGros ? "bg-white/15 text-white" : "text-white/85 hover:bg-white/10"}`}
+              className={`hidden whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold sm:inline-block ${inGros ? "bg-white/15 text-white" : "text-white/85 hover:bg-white/10"}`}
             >
               {inGros ? t.retail : t.wholesale}
             </Link>

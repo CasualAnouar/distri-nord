@@ -107,7 +107,7 @@ function BoxForm({ initial, onDone }: { initial: Box; onDone: () => void }) {
                   {p?.name ?? <span className="text-danger">Produit supprimé ({it.productId})</span>}
                   {p && <span className="text-xs text-muted"> · {formatDh(p.unitPrice)} / pièce</span>}
                 </span>
-                <input type="number" min={0} className={`${inputCls} w-20`} value={it.qty} onChange={(e) => setItem(it.productId, Math.floor(num(e.target.value)))} aria-label="Quantité" />
+                <input type="number" min={0} className={`${inputCls} !w-20 shrink-0`} value={it.qty} onChange={(e) => setItem(it.productId, Math.floor(num(e.target.value)))} aria-label="Quantité" />
                 <button type="button" onClick={() => setItem(it.productId, 0)} className="px-2 text-xs font-semibold text-danger" aria-label="Retirer">✕</button>
               </li>
             );

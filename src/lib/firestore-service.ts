@@ -28,7 +28,7 @@ import {
   type Product,
 } from "@/data/products";
 import { defaultBoxes, type Box } from "@/data/boxes";
-import { type AddressReply, type Customer, type Order, type OrderStatus } from "./shop";
+import { type AddressReply, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
 
 const COLLECTIONS = {

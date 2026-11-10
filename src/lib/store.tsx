@@ -88,11 +88,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<Config>(defaultConfig);
 
   useEffect(() => {
-    // 1. Immediate local cache hydration so first render is fast and consistent
+    // 1. Immediate local cache hydration so first render is fast and consistent. localStorage
+    // only exists in the browser, so this has to run after mount, not during render.
+    /* eslint-disable react-hooks/set-state-in-effect */
     setCart(read(KEYS.cart, []));
     setOrders(read(KEYS.orders, sampleOrders()));
     setConfig(withDefaults(read<Partial<Config> | null>(KEYS.config, null)));
     setReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // 2. Fetch live config from Firestore
     fetchFullConfig()
