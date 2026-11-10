@@ -10,7 +10,8 @@ import { ProductTile } from "./ProductTile";
 export function ProductCard({ product }: { product: Product }) {
   const { locale, t } = useLocale();
   const { addToCart, settings } = useStore();
-  const [mode, setMode] = useState<Mode>("lot");
+  const [picked, setMode] = useState<Mode>("lot");
+  const mode: Mode = product.lotOnly ? "lot" : picked;
   const [qty, setQty] = useState(1);
   const [flash, setFlash] = useState(false);
 
@@ -46,6 +47,11 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="text-xs text-muted"><bdi dir="ltr">{product.size}</bdi></p>
         </div>
 
+        {product.lotOnly ? (
+          <div className="rounded-xl bg-paper p-1 text-xs font-semibold">
+            <span className="block whitespace-nowrap rounded-lg bg-navy-900 px-1 py-1.5 text-center text-[11px] text-white shadow sm:text-xs">{t.lotOf(product.lot.qty)} · {t.lotOnly}</span>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 rounded-xl bg-paper p-1 text-xs font-semibold" role="radiogroup">
           {(["lot", "unit"] as Mode[]).map((m) => (
             <button
@@ -59,6 +65,7 @@ export function ProductCard({ product }: { product: Product }) {
             </button>
           ))}
         </div>
+        )}
 
         <div className="flex items-end justify-between gap-2">
           <div>

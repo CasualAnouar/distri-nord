@@ -75,16 +75,19 @@ function write(key: string, value: unknown) {
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const [rawCart, setCart] = useState<CartLine[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [config, setConfig] = useState<Config>(defaultConfig);
 
   useEffect(() => {
-    // 1. Immediate local cache hydration so first render is fast and consistent
+    // 1. Immediate local cache hydration so first render is fast and consistent. localStorage
+    // only exists in the browser, so this has to run after mount, not during render.
+    /* eslint-disable react-hooks/set-state-in-effect */
     setCart(read(KEYS.cart, []));
     setOrders(read(KEYS.orders, sampleOrders()));
     setConfig(withDefaults(read<Partial<Config> | null>(KEYS.config, null)));
     setReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // 2. Fetch live config from Firestore
     fetchFullConfig()
@@ -119,6 +122,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const activeCities = useMemo(() => config.cities.filter((c) => c.active), [config.cities]);
   const byId = useMemo(() => new Map(config.products.map((p) => [p.id, p])), [config.products]);
   const getProduct = useCallback((id: string) => byId.get(id), [byId]);
+  // A product switched to "lot only" can no longer be bought by the piece, even if it already sits in a cart.
+  const cart = useMemo(() => rawCart.filter((l) => !(l.mode === "unit" && byId.get(l.productId)?.lotOnly)), [rawCart, byId]);
 
   const saveConfig = (next: Config) => {
     setConfig(next);

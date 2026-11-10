@@ -5,7 +5,7 @@ import type { Category } from "@/data/products";
 import { slugify, type City, type Localized, type Settings } from "@/lib/config";
 import { useStore } from "@/lib/store";
 import { normalizePhone } from "@/lib/shop";
-import { Card, Field, Toggle, inputCls, num } from "@/components/admin/ui";
+import { Card, DecimalInput, Field, Toggle, inputCls } from "@/components/admin/ui";
 
 function LocalizedInputs({ label, value, onChange, textarea }: { label: string; value: Localized; onChange: (v: Localized) => void; textarea?: boolean }) {
   const Tag = textarea ? "textarea" : "input";
@@ -55,13 +55,13 @@ function GeneralSettings() {
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Minimum de commande (DH)" hint="Le panier est bloqué en dessous.">
-              <input type="number" min={1} className={inputCls} value={s.minCart} onChange={(e) => set({ minCart: num(e.target.value) })} />
+              <DecimalInput value={s.minCart} onChange={(minCart) => set({ minCart })} />
             </Field>
             <Field label="Votre numéro WhatsApp" hint={phoneOk ? "Envoyé au client quand la commande part." : "Numéro marocain invalide (06/07)."}>
               <input type="tel" dir="ltr" className={`${inputCls} ${phoneOk ? "" : "border-danger"}`} value={s.sellerPhone} onChange={(e) => set({ sellerPhone: e.target.value })} />
             </Field>
             <Field label="Alerte stock bas (pièces)" hint="« Stock limité » s'affiche en dessous.">
-              <input type="number" min={0} className={inputCls} value={s.lowStockAt} onChange={(e) => set({ lowStockAt: Math.floor(num(e.target.value)) })} />
+              <DecimalInput integer value={s.lowStockAt} onChange={(lowStockAt) => set({ lowStockAt })} />
             </Field>
           </div>
           <LocalizedInputs label="Créneau de livraison annoncé" value={s.deliveryWindow} onChange={(deliveryWindow) => set({ deliveryWindow })} />
@@ -116,8 +116,8 @@ function Zones() {
                 <tr key={c.id} className={c.active ? "" : "opacity-50"}>
                   <td className="py-1.5 pe-2"><input key={c.fr} className={inputCls} defaultValue={c.fr} onBlur={(e) => e.target.value.trim() && save({ fr: e.target.value.trim() })} /></td>
                   <td className="py-1.5 pe-2"><input key={c.ar} className={inputCls} dir="rtl" defaultValue={c.ar} onBlur={(e) => e.target.value.trim() && save({ ar: e.target.value.trim() })} /></td>
-                  <td className="py-1.5 pe-2"><input key={`f${c.fee}`} type="number" min={0} className={`${inputCls} w-24`} defaultValue={c.fee} onBlur={(e) => save({ fee: num(e.target.value) })} /></td>
-                  <td className="py-1.5 pe-2"><input key={`g${c.freeFrom}`} type="number" min={0} className={`${inputCls} w-24`} defaultValue={c.freeFrom} onBlur={(e) => save({ freeFrom: num(e.target.value) })} /></td>
+                  <td className="py-1.5 pe-2"><DecimalInput value={c.fee} className="!w-24" onCommit={(fee) => fee !== c.fee && save({ fee })} /></td>
+                  <td className="py-1.5 pe-2"><DecimalInput value={c.freeFrom} className="!w-24" onCommit={(freeFrom) => freeFrom !== c.freeFrom && save({ freeFrom })} /></td>
                   <td className="py-1.5 pe-2"><Toggle checked={c.active} onChange={(active) => save({ active })} label={`Active : ${c.fr}`} /></td>
                   <td className="py-1.5 text-end">
                     <button

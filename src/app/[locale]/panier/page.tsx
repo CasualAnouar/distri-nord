@@ -25,7 +25,6 @@ export default function CartPage() {
   const errors = {
     name: !form.name.trim(),
     phone: !phone,
-    city: !form.city,
     district: !viaWa && !form.district.trim(),
     address: !viaWa && !form.address.trim(),
   };
@@ -124,11 +123,11 @@ export default function CartPage() {
         {field("name", t.name, { auto: "name" })}
         {field("phone", t.phone, { type: "tel", hint: t.phoneHint, error: t.phoneError, auto: "tel" })}
         <label className="block">
-          <span className="text-sm font-semibold">{t.city}</span>
+          <span className="text-sm font-semibold">{t.city} <span className="font-normal text-muted">({t.optional})</span></span>
           <select
             value={form.city}
             onChange={(e) => setForm({ ...form, city: e.target.value })}
-            className={`mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-base ${touched && errors.city ? "border-danger" : "border-line"}`}
+            className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-base"
           >
             <option value="">{t.chooseCity}</option>
             {cities.map((c) => (
@@ -137,7 +136,7 @@ export default function CartPage() {
               </option>
             ))}
           </select>
-          {touched && errors.city && <span className="mt-1 block text-xs text-danger">{t.required}</span>}
+          {!form.city && <span className="mt-1 block text-xs text-muted">{t.cityHint}</span>}
         </label>
         <label className="flex items-start gap-3 rounded-xl border border-wa/40 bg-wa/5 p-3">
           <input type="checkbox" checked={viaWa} onChange={(e) => setViaWa(e.target.checked)} className="mt-1 size-4 accent-wa" />
@@ -159,7 +158,7 @@ export default function CartPage() {
 
         <dl className="space-y-1 border-t border-line pt-4 text-sm">
           <div className="flex justify-between"><dt className="text-muted">{t.subtotal}</dt><dd className="font-semibold">{formatDh(totals.subtotal, locale)}</dd></div>
-          <div className="flex justify-between"><dt className="text-muted">{t.delivery}</dt><dd className="font-semibold">{form.city ? (totals.delivery ? formatDh(totals.delivery, locale) : t.free) : "—"}</dd></div>
+          <div className="flex justify-between"><dt className="text-muted">{t.delivery}</dt><dd className="font-semibold">{form.city ? (totals.delivery ? formatDh(totals.delivery, locale) : t.free) : t.deliveryLater}</dd></div>
           <div className="flex justify-between pt-2 text-base"><dt className="font-bold">{t.total}</dt><dd className="font-extrabold text-navy-900">{formatDh(totals.total, locale)}</dd></div>
         </dl>
         <p className="rounded-xl bg-paper p-3 text-sm">{t.cod}</p>
