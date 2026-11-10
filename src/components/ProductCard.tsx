@@ -34,7 +34,7 @@ export function ProductCard({ product, channel = "detail" }: { product: Product;
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
       <div className="relative">
-        <ProductTile product={product} />
+        <ProductTile product={product} zoomable />
         {product.tag && (
           <span className="absolute start-2 top-2 rounded-full bg-sun-400 px-2 py-0.5 text-[11px] font-bold text-navy-950">{t.tags[product.tag]}</span>
         )}

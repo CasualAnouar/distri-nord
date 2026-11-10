@@ -28,7 +28,7 @@ function BoxCard({ box }: { box: Box }) {
     <article className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-sm">
       <div className="relative grid grid-cols-2 gap-px bg-line">
         {photos.map((p) => (
-          <ProductTile key={p.id} product={p} compact className="!aspect-square" />
+          <ProductTile key={p.id} product={p} compact zoomable className="!aspect-square" />
         ))}
         <span className="absolute start-2 top-2 rounded-full bg-navy-900 px-2 py-0.5 text-[11px] font-bold text-white">
           {box.icon} {t.box}

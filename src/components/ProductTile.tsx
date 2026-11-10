@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Product } from "@/data/products";
+import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { useProductImage } from "@/lib/product-image";
 
@@ -11,10 +12,31 @@ function isLight(hex: string) {
   return 0.299 * r + 0.587 * g + 0.114 * b > 170;
 }
 
-// Product photo on white when there is one; otherwise a white tile with the brand.
-export function ProductTile({ product, className = "", compact = false }: { product: Product; className?: string; compact?: boolean }) {
+// Full-size photo over the page; closes on a click anywhere or Escape.
+function PhotoPreview({ src, name, onClose }: { src: string; name: string; onClose: () => void }) {
+  const { t } = useLocale();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-ink/80 p-4" onClick={onClose} role="dialog" aria-label={name}>
+      <button onClick={onClose} className="absolute end-4 top-4 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-ink">✕ {t.close}</button>
+      {/* eslint-disable-next-line @next/next/no-img-element -- remote and uploaded photos, sizes unknown */}
+      <img src={src} alt={name} className="max-h-[80vh] max-w-full rounded-2xl bg-white object-contain p-4" onClick={(e) => e.stopPropagation()} />
+      <p className="mt-3 text-center text-sm font-semibold text-white">{name}</p>
+    </div>
+  );
+}
+
+// Product photo filling the tile when there is one; otherwise a white tile with the brand.
+// zoomable adds an eye button that opens the photo in full size.
+export function ProductTile({ product, className = "", compact = false, zoomable = false }: { product: Product; className?: string; compact?: boolean; zoomable?: boolean }) {
   const { categories } = useStore();
+  const { t } = useLocale();
   const [failed, setFailed] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
   // If the stored photo link breaks, fall back to the barcode lookup, then to the tile.
   const src = useProductImage(failed && failed === product.image ? { barcode: product.barcode } : product);
 
@@ -22,11 +44,25 @@ export function ProductTile({ product, className = "", compact = false }: { prod
     return (
       <div className={`relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-white ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- remote and uploaded photos, sizes unknown */}
-        <img src={src} alt={product.name} loading="lazy" onError={() => setFailed(src)} className={`size-full object-contain mix-blend-multiply ${compact ? "p-0.5" : "p-3"}`} />
+        <img src={src} alt={product.name} loading="lazy" onError={() => setFailed(src)} className="size-full object-cover" />
+        {zoomable && (
+          <button
+            type="button"
+            onClick={() => setPreview(true)}
+            aria-label={t.viewPhoto}
+            title={t.viewPhoto}
+            className="absolute bottom-2 end-2 grid size-8 place-items-center rounded-full bg-white/90 text-navy-900 shadow hover:bg-white"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        )}
+        {preview && <PhotoPreview src={src} name={product.name} onClose={() => setPreview(false)} />}
       </div>
     );
   }
-
   const icon = categories.find((c) => c.id === product.category)?.icon;
   return (
     <div className={`relative flex aspect-[4/3] flex-col items-center justify-center overflow-hidden bg-white ${className}`} dir="ltr">
