@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLocale } from "@/i18n/locale";
+import { useStore } from "@/lib/store";
 import { fetchOrder } from "@/lib/actions";
 import { formatDh, type Order } from "@/lib/shop";
 import { OrderChats } from "./OrderChats";
@@ -12,6 +13,9 @@ import { StatusSteps } from "./StatusSteps";
 // status follows what the seller does.
 export function OrderView({ initial }: { initial: Order | null }) {
   const { locale, t } = useLocale();
+  const { settings } = useStore();
+  const wa = settings.whatsapp;
+  const waLink = wa.businessPhone.replace(/\D/g, "").replace(/^0/, "212");
   const [order, setOrder] = useState(initial);
   const id = initial?.id;
   const done = order?.status === "delivered" || order?.status === "cancelled";
@@ -49,7 +53,14 @@ export function OrderView({ initial }: { initial: Order | null }) {
           <StatusSteps status={order.status} />
         </div>
       </section>
-      <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntro}</p>
+      <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{wa.enabled ? t.orderIntroLive(wa.businessPhone) : t.orderIntro}</p>
+      {wa.enabled && waLink && (
+        <div className="mt-4 text-center">
+          <a href={`https://wa.me/${waLink}`} target="_blank" rel="noreferrer" className="inline-block rounded-xl bg-wa px-6 py-3 font-bold text-white">
+            💬 {t.openWhatsApp}
+          </a>
+        </div>
+      )}
       <div className="mt-6">
         <OrderChats order={order} onChange={setOrder} sellerActions={false} />
       </div>

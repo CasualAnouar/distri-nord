@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { updateTag } from "next/cache";
 import { adminAuthorized } from "@/lib/admin-auth";
 import type { City, Config, Settings } from "@/lib/config";
@@ -23,6 +24,7 @@ import {
   writeProduct,
   writeSettings,
 } from "@/lib/server/data";
+import { syncOrderToWhatsApp } from "@/lib/wa/flows";
 
 // Every change to the store goes through these server actions. Shop actions re-check everything
 // the browser sent; dashboard actions also check the seller's login, since a server action can be
@@ -43,9 +45,17 @@ class Refused extends Error {
 
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
-/** Hook for the WhatsApp integration: called after every order change, with the saved order. */
+/**
+ * Sends the WhatsApp messages the order's new state calls for (nothing while WhatsApp is off).
+ * Runs after the response so the buyer and the seller never wait on Meta; it sends each message
+ * once and never throws on WhatsApp errors.
+ */
 async function afterOrderChange(order: Order) {
-  void order;
+  after(() =>
+    syncOrderToWhatsApp(order.id).catch((err) => {
+      console.error("WhatsApp sync failed:", err);
+    }),
+  );
 }
 
 export async function placeOrder(lines: CartLine[], rawCustomer: Customer, locale: "fr" | "ar"): Promise<PlaceOrderResult> {

@@ -57,8 +57,9 @@ async function readConfig(): Promise<Config> {
     getDocs(collection(db, C.categories)),
     getDocs(collection(db, C.products)),
   ]);
+  const stored = (settingsSnap.data() as Partial<Settings> | undefined) ?? {};
   return {
-    settings: { ...defaultSettings, ...((settingsSnap.data() as Partial<Settings> | undefined) ?? {}) },
+    settings: { ...defaultSettings, ...stored, whatsapp: { ...defaultSettings.whatsapp, ...stored.whatsapp } },
     cities: citiesSnap.docs.map((d) => d.data() as City),
     categories: catsSnap.docs.map((d) => d.data() as Category),
     products: prodsSnap.docs.map((d) => withImageUrl(d.data() as Product)),

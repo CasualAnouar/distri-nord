@@ -15,6 +15,14 @@ export type Settings = {
   minCart: number;
   lowStockAt: number;
   deliveryWindow: Localized;
+  whatsapp: WhatsAppSettings;
+};
+
+// Real WhatsApp (Cloud API). Credentials stay in server env vars; only these switches live here.
+export type WhatsAppSettings = {
+  enabled: boolean; // off = the shop shows the scripted demo conversation
+  businessPhone: string; // number customers receive messages from (shown on the order page)
+  sellerAlerts: boolean; // send new-order alerts and order buttons to sellerPhone
 };
 
 export type Config = { settings: Settings; cities: City[]; categories: Category[]; products: Product[] };
@@ -27,10 +35,11 @@ export const defaultSettings: Settings = {
     fr: "Boissons, snacks, épicerie et hygiène aux prix de gros. Paiement à la livraison, suivi sur WhatsApp.",
     ar: "مشروبات، وجبات خفيفة، بقالة ومواد التنظيف بأثمنة الجملة. الدفع عند الاستلام، والتتبع عبر واتساب.",
   },
-  sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 08 25 23 28",
+  sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 61 67 07 61",
   minCart: 100,
   lowStockAt: 120,
   deliveryWindow: { fr: "aujourd'hui entre 14h et 18h", ar: "اليوم بين 14:00 و 18:00" },
+  whatsapp: { enabled: false, businessPhone: "", sellerAlerts: true },
 };
 
 // Delivery zones around the Rabat store. Fees are placeholders.
