@@ -33,7 +33,7 @@ export const TEMPLATES: Record<TemplateKey, Def> = {
       fr: "Votre commande *{{1}}* est en route 🚚\nContact livraison : {{2}}\nMerci de préparer *{{3}}* en espèces.",
       ar: "طلبك *{{1}}* في الطريق 🚚\nللتواصل: {{2}}\nجهّز *{{3}}* نقداً من فضلك.",
     },
-    example: ["DN-4F7K2Q", "06 08 25 23 28", "1 250 DH"],
+    example: ["DN-4F7K2Q", "06 61 67 07 61", "1 250 DH"],
   },
   order_delivered: {
     name: "dn_commande_livree",
