@@ -13,6 +13,7 @@ const fr = {
   unit: "Pièce",
   lot: "Lot",
   lotOf: (n: number) => `Lot de ${n}`,
+  lotOnly: "lot complet",
   perUnit: "/ pièce",
   save: (n: number) => `-${n}%`,
   add: "Ajouter",
@@ -37,6 +38,9 @@ const fr = {
   phoneError: "Numéro marocain invalide (06 ou 07, 10 chiffres).",
   city: "Ville",
   chooseCity: "Choisir une ville",
+  optional: "facultatif",
+  cityHint: "Sans ville, nous confirmons la zone et les frais de livraison sur WhatsApp.",
+  deliveryLater: "À confirmer",
   district: "Quartier",
   address: "Adresse",
   landmark: "Point de repère",
@@ -64,6 +68,8 @@ const fr = {
     ["💵", "Payez à la réception", "En espèces, à la réception. Rien à payer en ligne."],
   ],
   language: "العربية",
+  viewPhoto: "Voir la photo",
+  close: "Fermer",
 };
 
 type Dict = typeof fr;
@@ -76,6 +82,7 @@ const ar: Dict = {
   unit: "بالحبة",
   lot: "بالجملة",
   lotOf: (n: number) => `علبة ${n}`,
+  lotOnly: "كاملة فقط",
   perUnit: "/ للحبة",
   save: (n: number) => `-${n}%`,
   add: "أضف",
@@ -100,6 +107,9 @@ const ar: Dict = {
   phoneError: "رقم مغربي غير صالح (06 أو 07، 10 أرقام).",
   city: "المدينة",
   chooseCity: "اختر المدينة",
+  optional: "اختياري",
+  cityHint: "بدون مدينة، نأكد معك المنطقة وثمن التوصيل عبر واتساب.",
+  deliveryLater: "سيتم تأكيده",
   district: "الحي",
   address: "العنوان",
   landmark: "علامة مميزة",
@@ -127,6 +137,8 @@ const ar: Dict = {
     ["💵", "ادفع عند الاستلام", "نقداً عند الاستلام. لا دفع عبر الإنترنت."],
   ],
   language: "Français",
+  viewPhoto: "عرض الصورة",
+  close: "إغلاق",
 };
 
 export const dicts: Record<Locale, Dict> = { fr, ar };

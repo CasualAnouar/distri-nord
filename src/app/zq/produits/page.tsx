@@ -7,7 +7,7 @@ import { useStore } from "@/lib/store";
 import { formatDh, lotSaving } from "@/lib/shop";
 import { ProductTile } from "@/components/ProductTile";
 import { fileToDataUrl } from "@/lib/product-image";
-import { Field, Modal, Toggle, inputCls, num } from "@/components/admin/ui";
+import { DecimalInput, Field, Modal, Toggle, inputCls } from "@/components/admin/ui";
 
 const tags: { value: Product["tag"] | ""; label: string }[] = [
   { value: "", label: "Aucun" },
@@ -21,7 +21,7 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
   const [p, setP] = useState<Product>(initial);
   const isNew = !config.products.some((x) => x.id === initial.id);
   const set = (patch: Partial<Product>) => setP({ ...p, ...patch });
-  const valid = p.name.trim() && p.brand.trim() && p.unitPrice > 0 && p.lot.qty > 1 && p.lot.price > 0;
+  const valid = p.name.trim() && p.brand.trim() && (p.lotOnly || p.unitPrice > 0) && p.lot.qty > 1 && p.lot.price > 0;
 
   return (
     <form
@@ -94,18 +94,22 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
           <input type="color" className="h-[38px] w-full cursor-pointer rounded-lg border border-line bg-white p-1" value={p.color} onChange={(e) => set({ color: e.target.value })} />
         </Field>
       </div>
+      <div className="flex items-center gap-3 rounded-xl bg-paper p-3">
+        <Toggle checked={!p.lotOnly} onChange={(v) => set({ lotOnly: !v })} label="Vendu aussi à la pièce" />
+        <span className="text-sm font-semibold">{p.lotOnly ? "Vendu uniquement par lot complet" : "Vendu par lot et à la pièce"}</span>
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Field label="Prix à la pièce (DH)">
-          <input type="number" min={0} step="0.5" className={inputCls} value={p.unitPrice} onChange={(e) => set({ unitPrice: num(e.target.value) })} />
+        <Field label="Prix à la pièce (DH)" hint={p.lotOnly ? "Pas de vente à la pièce" : undefined}>
+          <DecimalInput value={p.unitPrice} disabled={p.lotOnly} className="disabled:opacity-40" onChange={(unitPrice) => set({ unitPrice })} />
         </Field>
         <Field label="Pièces par lot">
-          <input type="number" min={2} className={inputCls} value={p.lot.qty} onChange={(e) => set({ lot: { ...p.lot, qty: Math.floor(num(e.target.value)) } })} />
+          <DecimalInput integer value={p.lot.qty} onChange={(qty) => set({ lot: { ...p.lot, qty } })} />
         </Field>
-        <Field label="Prix du lot (DH)" hint={p.lot.qty > 1 && p.unitPrice > 0 ? `${formatDh(+(p.lot.price / p.lot.qty).toFixed(2))}/pièce · -${lotSaving(p)}%` : undefined}>
-          <input type="number" min={0} className={inputCls} value={p.lot.price} onChange={(e) => set({ lot: { ...p.lot, price: num(e.target.value) } })} />
+        <Field label="Prix du lot (DH)" hint={p.lot.qty > 1 && p.lot.price > 0 ? `${formatDh(+(p.lot.price / p.lot.qty).toFixed(2))}/pièce${lotSaving(p) > 0 ? ` · -${lotSaving(p)}%` : ""}` : undefined}>
+          <DecimalInput value={p.lot.price} onChange={(price) => set({ lot: { ...p.lot, price } })} />
         </Field>
         <Field label="Stock (pièces)">
-          <input type="number" min={0} className={inputCls} value={p.stock} onChange={(e) => set({ stock: Math.floor(num(e.target.value)) })} />
+          <DecimalInput integer value={p.stock} onChange={(stock) => set({ stock })} />
         </Field>
       </div>
       <div className="flex items-center gap-3 rounded-xl bg-paper p-3">
@@ -184,6 +188,7 @@ export default function AdminProducts() {
               <th className="p-3 text-start">Prix pièce (DH)</th>
               <th className="p-3 text-start">Prix lot (DH)</th>
               <th className="p-3 text-start">Stock (pièces)</th>
+              <th className="p-3 text-start">À la pièce</th>
               <th className="p-3 text-start">Visible</th>
               <th className="p-3" />
             </tr>
@@ -203,23 +208,29 @@ export default function AdminProducts() {
                   </div>
                 </td>
                 <td className="p-3">
-                  <input key={`u${p.unitPrice}`} type="number" min={0} step="0.5" defaultValue={p.unitPrice} onBlur={(e) => updateProduct(p.id, { unitPrice: num(e.target.value) })} className={`${inputCls} w-24`} />
+                  {p.lotOnly ? (
+                    <span className="text-xs font-semibold text-muted">Lot seul</span>
+                  ) : (
+                    <DecimalInput value={p.unitPrice} onCommit={(unitPrice) => unitPrice !== p.unitPrice && updateProduct(p.id, { unitPrice })} className="!w-24" aria-label={`Prix pièce : ${p.name}`} />
+                  )}
                 </td>
                 <td className="p-3">
-                  <input key={`l${p.lot.price}`} type="number" min={0} defaultValue={p.lot.price} onBlur={(e) => updateProduct(p.id, { lot: { ...p.lot, price: num(e.target.value) } })} className={`${inputCls} w-24`} />
+                  <DecimalInput value={p.lot.price} onCommit={(price) => price !== p.lot.price && updateProduct(p.id, { lot: { ...p.lot, price } })} className="!w-24" aria-label={`Prix lot : ${p.name}`} />
                 </td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
-                    <input
-                      key={`s${p.stock}`}
-                      type="number"
-                      min={0}
-                      defaultValue={p.stock}
-                      onBlur={(e) => updateProduct(p.id, { stock: Math.floor(num(e.target.value)) })}
-                      className={`${inputCls} w-24 ${p.stock === 0 ? "border-danger text-danger" : p.stock < settings.lowStockAt ? "border-warn" : ""}`}
+                    <DecimalInput
+                      integer
+                      value={p.stock}
+                      onCommit={(stock) => stock !== p.stock && updateProduct(p.id, { stock })}
+                      className={`!w-24 ${p.stock === 0 ? "border-danger text-danger" : p.stock < settings.lowStockAt ? "border-warn" : ""}`}
+                      aria-label={`Stock : ${p.name}`}
                     />
                     {p.stock === 0 ? <span className="text-xs font-bold text-danger">Rupture</span> : p.stock < settings.lowStockAt ? <span className="text-xs font-bold text-warn">Bas</span> : null}
                   </div>
+                </td>
+                <td className="p-3">
+                  <Toggle checked={!p.lotOnly} onChange={(v) => updateProduct(p.id, { lotOnly: !v })} label={`Vendu à la pièce : ${p.name}`} />
                 </td>
                 <td className="p-3">
                   <Toggle checked={!p.hidden} onChange={(v) => updateProduct(p.id, { hidden: !v })} label={`Visible : ${p.name}`} />
@@ -231,7 +242,7 @@ export default function AdminProducts() {
             ))}
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-muted">Aucun produit.</td>
+                <td colSpan={7} className="p-8 text-center text-muted">Aucun produit.</td>
               </tr>
             )}
           </tbody>
