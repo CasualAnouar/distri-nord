@@ -4,10 +4,25 @@ import { useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { conversation, type ChatButton, type ChatView } from "@/lib/whatsapp";
-import type { Order } from "@/lib/shop";
+import type { Order, WaLogEntry } from "@/lib/shop";
+import type { ChatMessage } from "@/lib/whatsapp";
 import { WhatsAppPhone } from "./WhatsAppPhone";
 
-// Buyer and seller phones side by side on desktop, tabs on mobile.
+// Real messages sent and received on WhatsApp, as one side of the chat sees them.
+function liveMessages(log: WaLogEntry[] | undefined, view: ChatView, label: string): ChatMessage[] {
+  return (log ?? [])
+    .filter((m) => m.party === view)
+    .map((m, i) => ({
+      id: `${view}-live-${i}`,
+      from: m.dir === "out" ? "them" : "me",
+      at: m.at,
+      text: m.error ? `${m.text}\n⚠️ ${m.error}` : m.text,
+      location: m.location ? { ...m.location, label } : undefined,
+    }));
+}
+
+// Buyer and seller phones side by side on desktop, tabs on mobile. With WhatsApp switched on in
+// the dashboard they show the real conversation; otherwise the scripted demo.
 export function OrderChats({ order, initial = "buyer" }: { order: Order; initial?: ChatView }) {
   const { locale, t } = useLocale();
   const { setStatus, confirmAddress, config } = useStore();
@@ -15,6 +30,7 @@ export function OrderChats({ order, initial = "buyer" }: { order: Order; initial
   const [view, setView] = useState<ChatView>(initial);
   const [writing, setWriting] = useState(false);
   const ar = locale === "ar";
+  const live = config.settings.whatsapp.enabled;
 
   // Demo stand-in for WhatsApp's location share: a pin near the chosen city's centre.
   const sharePosition = () => {
@@ -37,10 +53,10 @@ export function OrderChats({ order, initial = "buyer" }: { order: Order; initial
     <WhatsAppPhone
       title={v === "buyer" ? config.settings.storeName[locale] : `${config.settings.storeName[locale]} · ${locale === "ar" ? "البائع" : "Vendeur"}`}
       subtitle={v === "buyer" ? (locale === "ar" ? "حساب تجاري" : "Compte professionnel") : locale === "ar" ? "إشعارات الطلبات" : "Alertes commandes"}
-      messages={conversation(order, v, locale, config)}
-      onButton={onButton(v)}
+      messages={live ? liveMessages(order.waLog, v, order.customer.name) : conversation(order, v, locale, config)}
+      onButton={live ? () => undefined : onButton(v)}
       composer={
-        v === "buyer" && writing && order.status === "new"
+        !live && v === "buyer" && writing && order.status === "new"
           ? {
               placeholder: ar ? "مثال: زنقة 5، رقم 21، قرب الحمام" : "Ex : Rue 5, n° 21, à côté du hammam",
               onSend: (text) => {
@@ -73,7 +89,7 @@ export function OrderChats({ order, initial = "buyer" }: { order: Order; initial
           </div>
         ))}
       </div>
-      <p className="mx-auto mt-4 max-w-md text-center text-xs text-muted">{t.demoNote}</p>
+      <p className="mx-auto mt-4 max-w-md text-center text-xs text-muted">{live ? (order.waLog?.length ? t.liveNote : t.waSending) : t.demoNote}</p>
     </div>
   );
 }

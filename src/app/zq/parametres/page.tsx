@@ -6,6 +6,7 @@ import { slugify, type City, type Localized, type Settings } from "@/lib/config"
 import { useStore } from "@/lib/store";
 import { normalizePhone } from "@/lib/shop";
 import { Card, DecimalInput, Field, Toggle, inputCls } from "@/components/admin/ui";
+import { WhatsAppCard } from "@/components/admin/WhatsAppCard";
 
 function LocalizedInputs({ label, value, onChange, textarea }: { label: string; value: Localized; onChange: (v: Localized) => void; textarea?: boolean }) {
   const Tag = textarea ? "textarea" : "input";
@@ -26,7 +27,8 @@ function GeneralSettings() {
   const [s, setS] = useState<Settings>(settings);
   const [saved, setSaved] = useState(false);
   const phoneOk = Boolean(normalizePhone(s.sellerPhone)) || s.sellerPhone === "06 00 00 00 00";
-  const dirty = JSON.stringify(s) !== JSON.stringify(settings);
+  // WhatsApp switches are saved by their own card; keep them out of this form.
+  const dirty = JSON.stringify({ ...s, whatsapp: null }) !== JSON.stringify({ ...settings, whatsapp: null });
   const set = (patch: Partial<Settings>) => {
     setS({ ...s, ...patch });
     setSaved(false);
@@ -37,7 +39,7 @@ function GeneralSettings() {
       onSubmit={(e) => {
         e.preventDefault();
         if (!phoneOk || s.minCart <= 0) return;
-        saveSettings(s);
+        saveSettings({ ...s, whatsapp: settings.whatsapp });
         setSaved(true);
       }}
       className="space-y-6"
@@ -182,6 +184,7 @@ export default function AdminSettings() {
         <p className="text-sm text-muted">Tout ce que la boutique affiche et envoie sur WhatsApp se règle ici.</p>
       </div>
       <GeneralSettings />
+      <WhatsAppCard />
       <Zones />
       <Categories />
     </div>

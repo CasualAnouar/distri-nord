@@ -11,6 +11,24 @@ Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesal
 - **Seller dashboard has no public address**: it is served only at `/<ADMIN_PATH>` (secret, server-side env) behind a login (`ADMIN_USER` / `ADMIN_PASSWORD`, HTTP Basic auth). Nothing in the shop links to it, `/admin` is a plain 404, and the secret never ships to the browser. See `src/proxy.ts` and `.env.example`. Without `ADMIN_PATH` the dashboard is unreachable.
 - **Everything is configurable from the dashboard**: `/<ADMIN_PATH>/parametres` (store name, slogan and home texts in fr/ar, minimum order, seller WhatsApp number, low-stock alert, delivery window, delivery zones with fees, categories) and `/<ADMIN_PATH>/produits` (add, edit, hide or delete products; prices, lot size, stock, badge, colour).
 
+## WhatsApp (real messages)
+The order conversations run on the **WhatsApp Cloud API** (Meta). Without it, or while it is switched off in **Paramètres › WhatsApp automatique**, the shop shows the scripted demo conversation.
+
+How it works:
+- When an order is placed or changes status (shop or dashboard), the browser calls `POST /api/whatsapp/sync`. The server reads the order and sends what its status calls for, once per status (`src/lib/wa/flows.ts`).
+- Buyer: an approved template with the order, the total to pay in cash and the address, with **Confirmer l'adresse** / **Changer l'adresse** buttons. The buyer can also send a location pin or type the address; the order is then confirmed. Then "en route" and "livrée" messages.
+- Seller (`sellerPhone`): new-order alert with **Confirmer** / **Annuler**, then **Lancer la livraison** and **Marquer livrée** buttons. Tapping them moves the order, and the buyer is told.
+- Replies arrive at `POST /api/whatsapp/webhook` (signature checked with the app secret). Every message is logged on the order (`waLog`) and shown in the dashboard's conversation view and on the buyer's order page.
+- Business-initiated messages use templates (`src/lib/wa/templates.ts`). The dashboard creates them on Meta with one button and shows their approval status.
+
+Setup:
+1. developers.facebook.com › Create app (Business) › add **WhatsApp**. The test number works for up to 5 registered recipient phones.
+2. The sending number must be different from the seller's alert number (a number can't message itself).
+3. In Vercel, set `WHATSAPP_TOKEN` (System user token with `whatsapp_business_messaging` and `whatsapp_business_management`), `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WABA_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` (any random string), and the Firebase service account `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY`. Redeploy.
+4. Meta app › WhatsApp › Configuration › Webhook: URL `https://<domain>/api/whatsapp/webhook`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to `messages`.
+5. Dashboard › Paramètres › WhatsApp automatique: check the connection, **Créer les modèles manquants**, wait for approval, send a test, then switch it on.
+6. Deploy the Firestore rules (`firebase deploy --only firestore:rules`): the `wa_*` collections are server only.
+
 ## Stack
 Next.js 16 (App Router) · Tailwind CSS 4 · Vercel. Same stack as Talismans Morocco, so Supabase can be added the same way.
 
@@ -21,7 +39,7 @@ The WhatsApp conversations (`src/lib/whatsapp.ts`) are scripted from the order s
 
 ## Going live (after the pitch)
 1. **Supabase**: tables `products`, `orders`, `order_lines`, `order_events`, with RLS for staff, plus Supabase Auth for the dashboard (replacing Basic auth). This replaces `store.tsx`.
-2. **WhatsApp Business Cloud API** (Meta): a verified business number and approved message templates (order received, confirm address, out for delivery, delivered). Address confirmation uses quick-reply buttons and a webhook (`/api/whatsapp`) that updates the order.
+2. **WhatsApp Business Cloud API**: built, see "WhatsApp" above. Before real customers, verify the business on Meta and use a dedicated number.
 3. **Product photos**: 15 sample products use front photos from [Open Food Facts](https://world.openfoodfacts.org) (open data, CC BY-SA, credited in the footer), linked by URL. In the dashboard a product can get a photo by upload, by link, or just by its barcode (looked up on Open Food Facts). Products without a photo keep the coloured tile. Before launch, the seller's own photos are the safest choice.
 
 ## Develop
