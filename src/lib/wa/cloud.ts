@@ -106,6 +106,10 @@ export const verifyToken = () => env().verifyToken;
 
 // ---- Account checks and template management (dashboard) ----
 
+// Puts the number in sending mode on the Cloud API (error 133010 "Account not registered" until
+// then). The PIN becomes the number's two-step verification code.
+export const registerPhone = (pin: string) => graph(`${env().phoneId}/register`, { method: "POST", body: { messaging_product: "whatsapp", pin } });
+
 export async function phoneInfo() {
   return graph<{ display_phone_number?: string; verified_name?: string; quality_rating?: string; code_verification_status?: string }>(
     `${env().phoneId}?fields=display_phone_number,verified_name,quality_rating,code_verification_status`,

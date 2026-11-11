@@ -34,6 +34,7 @@ export function WhatsAppCard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
+  const [pin, setPin] = useState("");
   const [testPhone, setTestPhone] = useState(settings.sellerPhone);
   const dirty = JSON.stringify(w) !== JSON.stringify(settings.whatsapp);
 
@@ -57,6 +58,7 @@ export function WhatsAppCard() {
       const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
       const json = await r.json();
       if (!r.ok) setNote(`❌ ${json.error ?? "Erreur"}`);
+      else if (action === "register") setNote("✅ Numéro activé chez Meta. Réessayez le message de test.");
       else if (action === "test") setNote("✅ Message de test envoyé. Vérifiez WhatsApp sur ce numéro.");
       else if (action === "templates") {
         const res = json.results as { name: string; language: string; result: string }[];
@@ -182,6 +184,24 @@ export function WhatsAppCard() {
           </button>
         </div>
         {note && <p className="whitespace-pre-line rounded-xl bg-paper p-3 text-xs">{note}</p>}
+
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-line p-3">
+          <Field
+            label="Activer l'envoi du numéro chez Meta"
+            hint="À faire une fois si l'envoi répond « Account not registered » (133010). Choisissez un code à 6 chiffres et notez-le : il protège le numéro."
+            className="min-w-48 flex-1"
+          >
+            <input inputMode="numeric" maxLength={6} dir="ltr" className={inputCls} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+          </Field>
+          <button
+            type="button"
+            disabled={!env?.token || pin.length !== 6 || busy !== ""}
+            onClick={() => post("register", { pin })}
+            className="rounded-xl bg-navy-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+          >
+            {busy === "register" ? "Activation…" : "Activer"}
+          </button>
+        </div>
       </div>
     </Card>
   );
