@@ -12,7 +12,7 @@ const env = () => ({
   wabaId: process.env.WHATSAPP_WABA_ID ?? "",
   appSecret: process.env.WHATSAPP_APP_SECRET ?? "",
   verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
-  version: process.env.WHATSAPP_API_VERSION || "v23.0",
+  version: process.env.WHATSAPP_API_VERSION || "v25.0",
   base: process.env.WHATSAPP_GRAPH_URL || "https://graph.facebook.com", // overridable for local tests
 });
 
