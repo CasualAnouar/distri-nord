@@ -27,7 +27,8 @@ Setup:
 3. In Vercel, set `WHATSAPP_TOKEN` (System user token with `whatsapp_business_messaging` and `whatsapp_business_management`), `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WABA_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` (any random string), and the Firebase service account `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY`. Redeploy.
 4. Meta app › WhatsApp › Configuration › Webhook: URL `https://<domain>/api/whatsapp/webhook`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to `messages`.
 5. Dashboard › Paramètres › WhatsApp automatique: check the connection, **Créer les modèles manquants**, wait for approval, send a test, then switch it on.
-6. Deploy the Firestore rules (`firebase deploy --only firestore:rules`): the `wa_*` collections are server only.
+6. After adding or changing any of these variables in Vercel, redeploy: Vercel only reads them at deploy time. If Meta says it can't validate the webhook, open `/api/whatsapp/webhook?hub.mode=subscribe&hub.challenge=ok&hub.verify_token=<token>`: it answers `ok`, or says whether the token is missing or different.
+7. Deploy the Firestore rules (`firebase deploy --only firestore:rules`): the `wa_*` collections are server only.
 
 ## Stack
 Next.js 16 (App Router) · Tailwind CSS 4 · Vercel. Same stack as Talismans Morocco, so Supabase can be added the same way.

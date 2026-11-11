@@ -8,12 +8,12 @@ import { normalizePhone } from "@/lib/shop";
 import { Card, Field, Toggle, inputCls } from "./ui";
 
 type Status = {
-  env: { token: boolean; phoneId: boolean; wabaId: boolean; appSecret: boolean; verifyToken: boolean; firebase: boolean };
+  env: { tokenHint?: string; token: boolean; phoneId: boolean; wabaId: boolean; appSecret: boolean; verifyToken: boolean; firebase: boolean };
   phone?: { display_phone_number?: string; verified_name?: string; quality_rating?: string; error?: string };
   templates?: { name: string; language: string; status: string; rejected_reason?: string }[] | { error: string };
 };
 
-const envLabels: [keyof Status["env"], string][] = [
+const envLabels: [Exclude<keyof Status["env"], "tokenHint">, string][] = [
   ["token", "WHATSAPP_TOKEN"],
   ["phoneId", "WHATSAPP_PHONE_NUMBER_ID"],
   ["wabaId", "WHATSAPP_WABA_ID"],
@@ -34,6 +34,7 @@ export function WhatsAppCard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");
+  const [pin, setPin] = useState("");
   const [testPhone, setTestPhone] = useState(settings.sellerPhone);
   const dirty = JSON.stringify(w) !== JSON.stringify(settings.whatsapp);
 
@@ -57,6 +58,7 @@ export function WhatsAppCard() {
       const r = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
       const json = await r.json();
       if (!r.ok) setNote(`❌ ${json.error ?? "Erreur"}`);
+      else if (action === "register") setNote("✅ Numéro activé chez Meta. Réessayez le message de test.");
       else if (action === "test") setNote("✅ Message de test envoyé. Vérifiez WhatsApp sur ce numéro.");
       else if (action === "templates") {
         const res = json.results as { name: string; language: string; result: string }[];
@@ -71,7 +73,7 @@ export function WhatsAppCard() {
   };
 
   const env = status?.env;
-  const envOk = env ? Object.values(env).every(Boolean) : false;
+  const envOk = env ? envLabels.every(([k]) => env[k]) : false;
   const templates = Array.isArray(status?.templates) ? status.templates : [];
   const approved = templates.filter((t) => t.status === "APPROVED").length;
   const detected = status?.phone?.display_phone_number;
@@ -130,10 +132,14 @@ export function WhatsAppCard() {
             {env && (
               <ul className="mt-2 space-y-1 font-mono text-xs">
                 {envLabels.map(([k, label]) => (
-                  <li key={k}>{env[k] ? "✅" : "⬜"} {label}</li>
+                  <li key={k}>
+                    {env[k] ? "✅" : "⬜"} {label}
+                    {k === "token" && env.tokenHint && <span className="text-muted"> ({env.tokenHint}, attendu : EAA…, plus de 100 caractères)</span>}
+                  </li>
                 ))}
               </ul>
             )}
+            {env && !envOk && <p className="mt-2 text-xs text-muted">Une variable ajoutée dans Vercel n&apos;est prise en compte qu&apos;après un nouveau déploiement.</p>}
             {status?.phone?.error && <p className="mt-2 text-xs text-danger">Meta : {status.phone.error}</p>}
             {status?.phone?.verified_name && (
               <p className="mt-2 text-xs">Compte : <strong>{status.phone.verified_name}</strong> · {detected} · qualité {status.phone.quality_rating ?? "?"}</p>
@@ -178,6 +184,24 @@ export function WhatsAppCard() {
           </button>
         </div>
         {note && <p className="whitespace-pre-line rounded-xl bg-paper p-3 text-xs">{note}</p>}
+
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-line p-3">
+          <Field
+            label="Activer l'envoi du numéro chez Meta"
+            hint="À faire une fois si l'envoi répond « Account not registered » (133010). Choisissez un code à 6 chiffres et notez-le : il protège le numéro."
+            className="min-w-48 flex-1"
+          >
+            <input inputMode="numeric" maxLength={6} dir="ltr" className={inputCls} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
+          </Field>
+          <button
+            type="button"
+            disabled={!env?.token || pin.length !== 6 || busy !== ""}
+            onClick={() => post("register", { pin })}
+            className="rounded-xl bg-navy-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+          >
+            {busy === "register" ? "Activation…" : "Activer"}
+          </button>
+        </div>
       </div>
     </Card>
   );

@@ -9,10 +9,13 @@ export const dynamic = "force-dynamic";
 export function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams;
   const expected = verifyToken();
-  if (expected && q.get("hub.mode") === "subscribe" && q.get("hub.verify_token") === expected) {
+  const given = (q.get("hub.verify_token") ?? "").trim();
+  if (expected && q.get("hub.mode") === "subscribe" && given === expected) {
     return new NextResponse(q.get("hub.challenge") ?? "", { status: 200, headers: { "Content-Type": "text/plain" } });
   }
-  return new NextResponse("Forbidden", { status: 403 });
+  // Visible in Vercel logs without revealing the token itself.
+  console.warn(`WhatsApp webhook verification refused: ${expected ? `token mismatch (expected ${expected.length} chars, got ${given.length})` : "WHATSAPP_VERIFY_TOKEN is not set"}`);
+  return new NextResponse(expected ? "Forbidden: verify token mismatch" : "Forbidden: WHATSAPP_VERIFY_TOKEN not set on the server", { status: 403 });
 }
 
 // Incoming messages and delivery statuses. Signed by Meta with the app secret.
