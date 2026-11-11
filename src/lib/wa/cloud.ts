@@ -10,7 +10,8 @@ import { BUTTON_ACTIONS, TEMPLATES, creationPayload, param, templateLangs, type 
 const clean = (v: string | undefined) => (v ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
 
 const env = () => ({
-  token: clean(process.env.WHATSAPP_TOKEN),
+  // Access tokens never contain spaces; drop any pasted "Bearer " prefix or wrapped lines.
+  token: clean(process.env.WHATSAPP_TOKEN).replace(/^Bearer\s+/i, "").replace(/\s+/g, ""),
   phoneId: clean(process.env.WHATSAPP_PHONE_NUMBER_ID),
   wabaId: clean(process.env.WHATSAPP_WABA_ID),
   appSecret: clean(process.env.WHATSAPP_APP_SECRET),
@@ -21,7 +22,9 @@ const env = () => ({
 
 export function envStatus() {
   const e = env();
-  return { token: Boolean(e.token), phoneId: Boolean(e.phoneId), wabaId: Boolean(e.wabaId), appSecret: Boolean(e.appSecret), verifyToken: Boolean(e.verifyToken) };
+  // Shape of the token (never the token itself) so the dashboard can spot a wrong paste.
+  const tokenHint = e.token ? `${e.token.slice(0, 3)}… ${e.token.length} caractères` : "";
+  return { tokenHint, token: Boolean(e.token), phoneId: Boolean(e.phoneId), wabaId: Boolean(e.wabaId), appSecret: Boolean(e.appSecret), verifyToken: Boolean(e.verifyToken) };
 }
 
 export const cloudConfigured = () => {

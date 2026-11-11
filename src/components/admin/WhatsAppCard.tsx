@@ -8,12 +8,12 @@ import { normalizePhone } from "@/lib/shop";
 import { Card, Field, Toggle, inputCls } from "./ui";
 
 type Status = {
-  env: { token: boolean; phoneId: boolean; wabaId: boolean; appSecret: boolean; verifyToken: boolean; firebase: boolean };
+  env: { tokenHint?: string; token: boolean; phoneId: boolean; wabaId: boolean; appSecret: boolean; verifyToken: boolean; firebase: boolean };
   phone?: { display_phone_number?: string; verified_name?: string; quality_rating?: string; error?: string };
   templates?: { name: string; language: string; status: string; rejected_reason?: string }[] | { error: string };
 };
 
-const envLabels: [keyof Status["env"], string][] = [
+const envLabels: [Exclude<keyof Status["env"], "tokenHint">, string][] = [
   ["token", "WHATSAPP_TOKEN"],
   ["phoneId", "WHATSAPP_PHONE_NUMBER_ID"],
   ["wabaId", "WHATSAPP_WABA_ID"],
@@ -71,7 +71,7 @@ export function WhatsAppCard() {
   };
 
   const env = status?.env;
-  const envOk = env ? Object.values(env).every(Boolean) : false;
+  const envOk = env ? envLabels.every(([k]) => env[k]) : false;
   const templates = Array.isArray(status?.templates) ? status.templates : [];
   const approved = templates.filter((t) => t.status === "APPROVED").length;
   const detected = status?.phone?.display_phone_number;
@@ -130,7 +130,10 @@ export function WhatsAppCard() {
             {env && (
               <ul className="mt-2 space-y-1 font-mono text-xs">
                 {envLabels.map(([k, label]) => (
-                  <li key={k}>{env[k] ? "✅" : "⬜"} {label}</li>
+                  <li key={k}>
+                    {env[k] ? "✅" : "⬜"} {label}
+                    {k === "token" && env.tokenHint && <span className="text-muted"> ({env.tokenHint}, attendu : EAA…, plus de 100 caractères)</span>}
+                  </li>
                 ))}
               </ul>
             )}
