@@ -19,15 +19,17 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar", conf
   const ar = locale === "ar";
   const dh = (n: number) => formatDh(n, locale);
   const city = config.cities.find((c) => c.id === o.customer.city)?.[locale] ?? o.customer.city;
+  // The city is optional at checkout.
+  const place = (parts: string[]) => parts.filter((x) => x.trim()).join(", ");
   const first = o.customer.name.split(" ")[0];
   const items = o.lines.map((l) => `• ${l.qty} × ${l.name}${l.mode === "lot" ? (ar ? ` (علبة ${l.unitsPerLine})` : ` (lot ${l.unitsPerLine})`) : ""}`).join("\n");
   // The address can come from the checkout form, or later from WhatsApp as a pin or a typed message.
   const hasAddress = Boolean(o.customer.address.trim());
   const addr = hasAddress
-    ? `${o.customer.address}, ${o.customer.district}, ${city}${o.customer.landmark ? `\n🏁 ${o.customer.landmark}` : ""}`
-    : `${city} · ${ar ? "العنوان سيُرسل عبر واتساب" : "adresse à recevoir sur WhatsApp"}`;
+    ? `${place([o.customer.address, o.customer.district, city])}${o.customer.landmark ? `\n🏁 ${o.customer.landmark}` : ""}`
+    : place([city, ar ? "العنوان سيُرسل عبر واتساب" : "adresse à recevoir sur WhatsApp"]).replace(", ", " · ");
   const reply = o.addressReply;
-  const pin = reply?.via === "location" ? { lat: reply.lat, lng: reply.lng, label: `${o.customer.name} · ${city}` } : undefined;
+  const pin = reply?.via === "location" ? { lat: reply.lat, lng: reply.lng, label: `${o.customer.name}${city ? ` · ${city}` : ""}` } : undefined;
   const confirmedAt = reached(o, "confirmed");
   const shippingAt = reached(o, "shipping");
   const deliveredAt = reached(o, "delivered");
@@ -51,8 +53,8 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar", conf
           ? `المرجو تأكيد عنوان التوصيل:\n\n${addr}\n\nأو أرسل لنا موقعك 📍 أو اكتب عنواناً آخر.`
           : `Merci de confirmer votre adresse de livraison :\n\n${addr}\n\nVous pouvez aussi nous envoyer votre position 📍 ou écrire une autre adresse.`
         : ar
-          ? `للتوصيل إلى ${city}، أرسل لنا موقعك 📍 أو اكتب عنوانك في رسالة.`
-          : `Pour vous livrer à ${city}, envoyez-nous votre position 📍 ou écrivez votre adresse dans un message.`,
+          ? `${city ? `للتوصيل إلى ${city}، ` : "للتوصيل، "}أرسل لنا موقعك 📍 أو اكتب عنوانك في رسالة.`
+          : `${city ? `Pour vous livrer à ${city}, envoyez-nous` : "Pour vous livrer, envoyez-nous"} votre position 📍 ou écrivez votre adresse dans un message.`,
       buttons:
         o.status === "new"
           ? [

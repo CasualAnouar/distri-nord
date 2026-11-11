@@ -78,7 +78,7 @@ export default function AdminOrders() {
                 <span className="font-mono text-sm font-bold">{o.id}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${badge[o.status]}`}>{t.status[o.status]}</span>
                 <span className="min-w-0 flex-1 truncate text-sm">
-                  {o.customer.name} · {cityName(o.customer.city)}{o.customer.district && `, ${o.customer.district}`}
+                  {o.customer.name} · {cityName(o.customer.city) || "Ville à confirmer"}{o.customer.district && `, ${o.customer.district}`}
                 </span>
                 <span className="text-xs text-muted">{ago(o.createdAt)}</span>
                 <span className="font-extrabold text-navy-900">{formatDh(o.total)}</span>
@@ -89,7 +89,7 @@ export default function AdminOrders() {
                     <p className="font-semibold">📞 <a href={`tel:${o.customer.phone}`} className="underline">{o.customer.phone}</a></p>
                     <p className="mt-1">
                       🏠 {o.customer.address ? `${o.customer.address}, ${o.customer.district}, ` : ""}
-                      {cityName(o.customer.city)}
+                      {cityName(o.customer.city) || "Ville à confirmer"}
                       {!o.customer.address && !o.addressReply && <span className="text-warn"> · adresse attendue sur WhatsApp</span>}
                     </p>
                     {o.addressReply?.via === "location" && (

@@ -77,7 +77,7 @@ export async function placeOrder(lines: CartLine[], rawCustomer: Customer, local
         const orderLines = clean.map((l) => {
           const p = products.get(l.productId);
           if (!p || p.hidden) throw new Refused("unavailable", p?.name);
-          if (l.mode === "unit" && (p as Product & { lotOnly?: boolean }).lotOnly) throw new Refused("lotOnly", p.name);
+          if (l.mode === "unit" && p.lotOnly) throw new Refused("lotOnly", p.name);
           const unitsPerLine = l.mode === "lot" ? p.lot.qty : 1;
           units.set(p.id, (units.get(p.id) ?? 0) + unitsPerLine * l.qty);
           if ((units.get(p.id) ?? 0) > p.stock) throw new Refused("stock", p.name);

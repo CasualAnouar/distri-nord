@@ -151,8 +151,16 @@ export function StoreProvider({
   const activeCities = useMemo(() => config.cities.filter((c) => c.active), [config.cities]);
   const byId = useMemo(() => new Map(config.products.map((p) => [p.id, p])), [config.products]);
   const getProduct = useCallback((id: string) => byId.get(id), [byId]);
-  // Lines whose product is gone or hidden are not part of the cart any more.
-  const cart = useMemo(() => rawCart.filter((l) => byId.has(l.productId) && !byId.get(l.productId)!.hidden), [rawCart, byId]);
+  // Lines whose product is gone or hidden are not part of the cart any more, and a product switched
+  // to "lot only" can no longer be bought by the piece, even if it already sits in a cart.
+  const cart = useMemo(
+    () =>
+      rawCart.filter((l) => {
+        const p = byId.get(l.productId);
+        return p && !p.hidden && !(l.mode === "unit" && p.lotOnly);
+      }),
+    [rawCart, byId],
+  );
 
   const totals = (cityId?: string) => cartTotals(cart, getProduct, { cities: config.cities, minCart: config.settings.minCart, cityId });
 
