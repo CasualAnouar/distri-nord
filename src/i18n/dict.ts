@@ -68,6 +68,8 @@ const fr = {
     ["💵", "Payez à la réception", "En espèces, à la réception. Rien à payer en ligne."],
   ],
   language: "العربية",
+  viewPhoto: "Voir la photo",
+  close: "Fermer",
 };
 
 type Dict = typeof fr;
@@ -135,6 +137,8 @@ const ar: Dict = {
     ["💵", "ادفع عند الاستلام", "نقداً عند الاستلام. لا دفع عبر الإنترنت."],
   ],
   language: "Français",
+  viewPhoto: "عرض الصورة",
+  close: "إغلاق",
 };
 
 export const dicts: Record<Locale, Dict> = { fr, ar };
