@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminConfigured } from "@/lib/firebase-admin";
-import { cloudConfigured, createMissingTemplates, envStatus, listTemplates, phoneInfo, sendHelloWorld, sendText } from "@/lib/wa/cloud";
+import { cloudConfigured, createMissingTemplates, envStatus, listTemplates, phoneInfo, registerPhone, sendHelloWorld, sendText } from "@/lib/wa/cloud";
 import { waId } from "@/lib/shop";
 
 // Dashboard-only WhatsApp tools. Reached at /<ADMIN_PATH>/api/whatsapp behind the dashboard
@@ -23,8 +23,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   if (!cloudConfigured()) return NextResponse.json({ error: "WhatsApp non configuré" }, { status: 400 });
-  const body = (await request.json().catch(() => ({}))) as { action?: string; phone?: string };
+  const body = (await request.json().catch(() => ({}))) as { action?: string; phone?: string; pin?: string };
   try {
+    if (body.action === "register") {
+      if (!/^\d{6}$/.test(body.pin ?? "")) return NextResponse.json({ error: "Le code doit faire 6 chiffres" }, { status: 400 });
+      await registerPhone(body.pin!);
+      return NextResponse.json({ ok: true });
+    }
     if (body.action === "templates") return NextResponse.json({ results: await createMissingTemplates() });
     if (body.action === "test") {
       const to = waId(body.phone ?? "");
