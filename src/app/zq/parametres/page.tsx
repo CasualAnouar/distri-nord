@@ -26,6 +26,13 @@ function GeneralSettings() {
   const { settings, saveSettings } = useStore();
   const [s, setS] = useState<Settings>(settings);
   const [saved, setSaved] = useState(false);
+  // The form starts from the saved settings and follows them when they change on the server
+  // (after a save or a refresh), unless the seller is in the middle of editing.
+  const [base, setBase] = useState<Settings>(settings);
+  if (base !== settings) {
+    setBase(settings);
+    if (JSON.stringify({ ...s, whatsapp: null }) === JSON.stringify({ ...base, whatsapp: null })) setS(settings);
+  }
   const phoneOk = Boolean(normalizePhone(s.sellerPhone)) || s.sellerPhone === "06 00 00 00 00";
   // WhatsApp switches are saved by their own card; keep them out of this form.
   const dirty = JSON.stringify({ ...s, whatsapp: null }) !== JSON.stringify({ ...settings, whatsapp: null });
