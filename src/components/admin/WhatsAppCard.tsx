@@ -134,6 +134,7 @@ export function WhatsAppCard() {
                 ))}
               </ul>
             )}
+            {env && !envOk && <p className="mt-2 text-xs text-muted">Une variable ajoutée dans Vercel n&apos;est prise en compte qu&apos;après un nouveau déploiement.</p>}
             {status?.phone?.error && <p className="mt-2 text-xs text-danger">Meta : {status.phone.error}</p>}
             {status?.phone?.verified_name && (
               <p className="mt-2 text-xs">Compte : <strong>{status.phone.verified_name}</strong> · {detected} · qualité {status.phone.quality_rating ?? "?"}</p>
