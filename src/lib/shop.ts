@@ -61,6 +61,7 @@ export function unitsFor(p: Product, mode: Mode, qty: number) {
 
 export function lotSaving(p: Product) {
   const full = p.unitPrice * p.lot.qty;
+  if (p.lotOnly || full <= 0) return 0;
   return Math.round(((full - p.lot.price) / full) * 100);
 }
 

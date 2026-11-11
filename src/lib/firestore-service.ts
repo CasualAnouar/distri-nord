@@ -27,7 +27,7 @@ import {
   type Category,
   type Product,
 } from "@/data/products";
-import { type AddressReply, type Customer, type Order, type OrderStatus } from "./shop";
+import { type AddressReply, type Order, type OrderStatus } from "./shop";
 import { sampleOrders } from "./sample-orders";
 
 const COLLECTIONS = {
