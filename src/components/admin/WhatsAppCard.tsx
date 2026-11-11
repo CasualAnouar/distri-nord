@@ -31,6 +31,12 @@ export function WhatsAppCard() {
   const base = `/${pathname.split("/").filter(Boolean)[0] ?? ""}`;
   const api = `${base}/api/whatsapp`;
   const [w, setW] = useState<WhatsAppSettings>(settings.whatsapp);
+  // Follow the saved settings when they change on the server, unless the seller is editing.
+  const [savedW, setSavedW] = useState<WhatsAppSettings>(settings.whatsapp);
+  if (savedW !== settings.whatsapp) {
+    setSavedW(settings.whatsapp);
+    if (JSON.stringify(w) === JSON.stringify(savedW)) setW(settings.whatsapp);
+  }
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState("");
   const [note, setNote] = useState("");

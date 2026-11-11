@@ -1,56 +1,16 @@
-"use client";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { isLocale } from "@/i18n/dict";
+import { getOrder } from "@/lib/server/data";
+import { OrderView } from "@/components/OrderView";
 
-import Link from "next/link";
-import { use } from "react";
-import { useLocale } from "@/i18n/locale";
-import { useStore } from "@/lib/store";
-import { formatDh } from "@/lib/shop";
-import { OrderChats } from "@/components/OrderChats";
-import { StatusSteps } from "@/components/StatusSteps";
+// An order page is private to whoever has its link: never cached, never indexed.
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const { locale, t } = useLocale();
-  const { ready, orders, settings } = useStore();
-  const wa = settings.whatsapp;
-  const waLink = wa.businessPhone.replace(/\D/g, "").replace(/^0/, "212");
-  const order = orders.find((o) => o.id === id);
-
-  if (!ready) return <main className="min-h-[60vh]" />;
-  if (!order)
-    return (
-      <main className="mx-auto max-w-xl px-4 py-20 text-center">
-        <p className="text-lg font-semibold">{t.orderNotFound}</p>
-        <Link href={`/${locale}`} className="mt-6 inline-block rounded-xl bg-sun-400 px-6 py-3 font-bold text-navy-950">{t.continueShopping}</Link>
-      </main>
-    );
-
-  return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <section className="rounded-2xl border border-line bg-white p-5 text-center">
-        <p className="text-4xl" aria-hidden>🎉</p>
-        <h1 className="mt-2 text-2xl font-extrabold">{t.orderPlaced}</h1>
-        <p className="mt-1 text-muted">
-          {t.orderNumber} <strong className="text-ink" dir="ltr">{order.id}</strong> · {formatDh(order.total, locale)}
-        </p>
-        <div className="mx-auto mt-5 max-w-lg">
-          <StatusSteps status={order.status} />
-        </div>
-      </section>
-      <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{wa.enabled ? t.orderIntroLive(wa.businessPhone) : t.orderIntro}</p>
-      {wa.enabled && waLink && (
-        <div className="mt-4 text-center">
-          <a href={`https://wa.me/${waLink}`} target="_blank" rel="noreferrer" className="inline-block rounded-xl bg-wa px-6 py-3 font-bold text-white">
-            💬 {t.openWhatsApp}
-          </a>
-        </div>
-      )}
-      <div className="mt-6">
-        <OrderChats order={order} />
-      </div>
-      <div className="mt-10 text-center">
-        <Link href={`/${locale}`} className="inline-block rounded-xl bg-sun-400 px-6 py-3 font-bold text-navy-950">{t.continueShopping}</Link>
-      </div>
-    </main>
-  );
+export default async function OrderPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const { locale, id } = await params;
+  if (!isLocale(locale)) notFound();
+  const order = await getOrder(id);
+  return <OrderView initial={order} />;
 }

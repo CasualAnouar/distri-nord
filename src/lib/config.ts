@@ -55,17 +55,6 @@ export const defaultCities: City[] = [
 
 export const defaultConfig: Config = { settings: defaultSettings, cities: defaultCities, categories: defaultCategories, products: defaultProducts };
 
-// Fills in anything a stored config from an older demo version lacks.
-export function withDefaults(stored: Partial<Config> | null): Config {
-  if (!stored) return defaultConfig;
-  return {
-    settings: { ...defaultSettings, ...stored.settings, whatsapp: { ...defaultSettings.whatsapp, ...stored.settings?.whatsapp } },
-    cities: stored.cities ?? defaultCities,
-    categories: stored.categories ?? defaultCategories,
-    products: stored.products ?? defaultProducts,
-  };
-}
-
 export function slugify(s: string) {
   const base = s
     .normalize("NFD")

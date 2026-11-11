@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
 import { conversation, type ChatButton, type ChatView } from "@/lib/whatsapp";
-import type { Order, WaLogEntry } from "@/lib/shop";
+import type { AddressReply, Order, WaLogEntry } from "@/lib/shop";
 import type { ChatMessage } from "@/lib/whatsapp";
 import { WhatsAppPhone } from "./WhatsAppPhone";
 
@@ -23,9 +23,24 @@ function liveMessages(log: WaLogEntry[] | undefined, view: ChatView, label: stri
 
 // Buyer and seller phones side by side on desktop, tabs on mobile. With WhatsApp switched on in
 // the dashboard they show the real conversation; otherwise the scripted demo.
-export function OrderChats({ order, initial = "buyer" }: { order: Order; initial?: ChatView }) {
+export function OrderChats({
+  order,
+  initial = "buyer",
+  onChange,
+  sellerActions = true,
+}: {
+  order: Order;
+  initial?: ChatView;
+  /** Receives the order as saved after a button press. */
+  onChange?: (order: Order) => void;
+  /** False on the buyer's page: the seller's buttons only work from the dashboard. */
+  sellerActions?: boolean;
+}) {
   const { locale, t } = useLocale();
-  const { setStatus, confirmAddress, config } = useStore();
+  const store = useStore();
+  const { config } = store;
+  const setStatus = (id: string, to: Order["status"]) => store.setStatus(id, to).then((o) => o && onChange?.(o));
+  const confirmAddress = (id: string, reply: AddressReply) => store.confirmAddress(id, reply).then((o) => o && onChange?.(o));
   const cities = config.cities;
   const [view, setView] = useState<ChatView>(initial);
   const [writing, setWriting] = useState(false);
@@ -53,7 +68,13 @@ export function OrderChats({ order, initial = "buyer" }: { order: Order; initial
     <WhatsAppPhone
       title={v === "buyer" ? config.settings.storeName[locale] : `${config.settings.storeName[locale]} · ${locale === "ar" ? "البائع" : "Vendeur"}`}
       subtitle={v === "buyer" ? (locale === "ar" ? "حساب تجاري" : "Compte professionnel") : locale === "ar" ? "إشعارات الطلبات" : "Alertes commandes"}
-      messages={live ? liveMessages(order.waLog, v, order.customer.name) : conversation(order, v, locale, config)}
+      messages={
+        live
+          ? liveMessages(order.waLog, v, order.customer.name)
+          : v === "seller" && !sellerActions
+            ? conversation(order, v, locale, config).map((m) => ({ ...m, buttons: undefined }))
+            : conversation(order, v, locale, config)
+      }
       onButton={live ? () => undefined : onButton(v)}
       composer={
         !live && v === "buyer" && writing && order.status === "new"

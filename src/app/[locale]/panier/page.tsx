@@ -18,6 +18,7 @@ export default function CartPage() {
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const [viaWa, setViaWa] = useState(false);
+  const [error, setError] = useState("");
 
   const totals = cartTotalsFor(form.city);
   const min = formatDh(settings.minCart, locale);
@@ -30,14 +31,21 @@ export default function CartPage() {
   };
   const valid = !Object.values(errors).some(Boolean) && totals.missing === 0;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    if (!valid) return;
+    if (!valid || sending) return;
     setSending(true);
+    setError("");
     const customer = viaWa ? { ...form, district: "", address: "", landmark: "" } : form;
-    const order = placeOrder({ ...customer, phone: phone! }, locale);
-    router.push(`/${locale}/commande/${order.id}`);
+    const result = await placeOrder({ ...customer, phone: phone! }, locale).catch(() => ({ ok: false, error: "server" }) as const);
+    if (result.ok) {
+      router.push(`/${locale}/commande/${result.orderId}`);
+      return;
+    }
+    const msg = t.orderError[result.error];
+    setError(typeof msg === "function" ? msg(("productName" in result && result.productName) || "") : msg);
+    setSending(false);
   };
 
   const field = (key: keyof Customer, label: string, opts: { type?: string; hint?: string; error?: string; optional?: boolean; auto?: string } = {}) => {
@@ -162,6 +170,11 @@ export default function CartPage() {
           <div className="flex justify-between pt-2 text-base"><dt className="font-bold">{t.total}</dt><dd className="font-extrabold text-navy-900">{formatDh(totals.total, locale)}</dd></div>
         </dl>
         <p className="rounded-xl bg-paper p-3 text-sm">{t.cod}</p>
+        {error && (
+          <p role="alert" className="rounded-xl bg-danger/10 p-3 text-sm font-semibold text-danger">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={totals.missing > 0 || sending}

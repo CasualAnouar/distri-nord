@@ -15,7 +15,7 @@ Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesal
 The order conversations run on the **WhatsApp Cloud API** (Meta). Without it, or while it is switched off in **Paramètres › WhatsApp automatique**, the shop shows the scripted demo conversation.
 
 How it works:
-- When an order is placed or changes status (shop or dashboard), the browser calls `POST /api/whatsapp/sync`. The server reads the order and sends what its status calls for, once per status (`src/lib/wa/flows.ts`).
+- When an order is placed or changes status (shop or dashboard), the server action that saved it (`src/lib/actions.ts`) calls `syncOrderToWhatsApp` right after responding (`POST /api/whatsapp/sync` does the same on demand). It reads the order and sends what its status calls for, once per status (`src/lib/wa/flows.ts`).
 - Buyer: an approved template with the order, the total to pay in cash and the address, with **Confirmer l'adresse** / **Changer l'adresse** buttons. The buyer can also send a location pin or type the address; the order is then confirmed. Then "en route" and "livrée" messages.
 - Seller (`sellerPhone`): new-order alert with **Confirmer** / **Annuler**, then **Lancer la livraison** and **Marquer livrée** buttons. Tapping them moves the order, and the buyer is told.
 - Replies arrive at `POST /api/whatsapp/webhook` (signature checked with the app secret). Every message is logged on the order (`waLog`) and shown in the dashboard's conversation view and on the buyer's order page.
@@ -34,7 +34,7 @@ Setup:
 Next.js 16 (App Router) · Tailwind CSS 4 · Vercel. Same stack as Talismans Morocco, so Supabase can be added the same way.
 
 ## Demo mode
-There is no backend yet. Cart, orders and the whole configuration live in the browser's `localStorage` (`src/lib/store.tsx`) and sync between tabs. Open the shop and the dashboard side by side on the same device to show the full loop. "Réinitialiser" in the admin restores the sample orders.
+Products, settings, zones and orders live in Firestore and are read and written only on the server (`src/lib/server/data.ts`, server actions in `src/lib/actions.ts`). Shop pages are rendered with the real catalogue and cached; every dashboard change refreshes them. Only the cart is kept in the browser. To test locally without touching the live data, run the Firestore emulator and set `FIRESTORE_EMULATOR_HOST`.
 
 The WhatsApp conversations (`src/lib/whatsapp.ts`) are scripted from the order status. The buttons inside the chat change the status, just like quick replies will.
 
