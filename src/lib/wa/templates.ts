@@ -38,8 +38,8 @@ export const TEMPLATES: Record<TemplateKey, Def> = {
   order_delivered: {
     name: "dn_commande_livree",
     body: {
-      fr: "Votre commande *{{1}}* a été livrée 📦\nMerci de votre confiance, à bientôt chez {{2}} !",
-      ar: "تم تسليم طلبك *{{1}}* 📦\nشكراً على ثقتك، نراك قريباً في {{2}}!",
+      fr: "Votre commande *{{1}}* a été livrée 📦\nMerci de votre confiance, à bientôt chez {{2}}.\nBonne journée !",
+      ar: "تم تسليم طلبك *{{1}}* 📦\nشكراً على ثقتك، نراك قريباً في {{2}}.\nنهارك سعيد!",
     },
     example: ["DN-4F7K2Q", "Distri Nord"],
   },
