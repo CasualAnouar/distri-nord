@@ -56,6 +56,10 @@ const fr = {
   buyerView: "Client",
   sellerView: "Vendeur",
   demoNote: "Démo : les boutons dans la conversation font avancer la commande, comme le ferait le vrai WhatsApp.",
+  orderIntroLive: (phone: string) => `Nous venons de vous écrire sur WhatsApp${phone ? ` depuis le ${phone}` : ""}. Confirmez votre adresse, partagez votre position ou écrivez-la directement dans la conversation.`,
+  openWhatsApp: "Ouvrir WhatsApp",
+  waSending: "Envoi du message WhatsApp en cours…",
+  liveNote: "Copie des messages échangés sur WhatsApp. Répondez depuis l'application WhatsApp.",
   howTitle: "Comment ça marche",
   how: [
     ["🛒", "Remplissez votre panier", "En lot pour le prix de gros, ou à la pièce. Minimum {min}."],
@@ -119,6 +123,10 @@ const ar: Dict = {
   buyerView: "الزبون",
   sellerView: "البائع",
   demoNote: "عرض تجريبي: الأزرار داخل المحادثة تُقدّم الطلب كما سيفعل واتساب الحقيقي.",
+  orderIntroLive: (phone: string) => `راسلناك الآن على واتساب${phone ? ` من الرقم ${phone}` : ""}. أكّد عنوانك أو أرسل موقعك أو اكتبه مباشرة في المحادثة.`,
+  openWhatsApp: "فتح واتساب",
+  waSending: "جاري إرسال رسالة واتساب…",
+  liveNote: "نسخة من الرسائل المتبادلة على واتساب. أجب من تطبيق واتساب.",
   howTitle: "كيف يعمل",
   how: [
     ["🛒", "املأ سلتك", "بالجملة بثمن أقل، أو بالحبة. الحد الأدنى {min}."],

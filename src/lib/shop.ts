@@ -31,6 +31,19 @@ export type Order = {
   status: OrderStatus;
   history: { status: OrderStatus; at: string }[];
   addressReply?: AddressReply;
+  // Real WhatsApp messages for this order (written by the server only).
+  waLog?: WaLogEntry[];
+};
+
+// One WhatsApp message sent or received about an order. "out" = sent by the shop's number.
+export type WaLogEntry = {
+  at: string;
+  party: "buyer" | "seller";
+  dir: "out" | "in";
+  text: string;
+  location?: { lat: number; lng: number };
+  wamid?: string;
+  error?: string;
 };
 
 // How the buyer answered the address question on WhatsApp.
@@ -68,6 +81,12 @@ export function cartTotals(lines: CartLine[], lookup: (id: string) => Product | 
 export function formatDh(n: number, locale: "fr" | "ar" = "fr") {
   const v = new Intl.NumberFormat(locale === "ar" ? "ar-MA" : "fr-MA", { maximumFractionDigits: 2 }).format(n);
   return locale === "ar" ? `${v} درهم` : `${v} DH`;
+}
+
+// WhatsApp id (international digits, no +) for a Moroccan number: 0608252328 -> 212608252328.
+export function waId(raw: string) {
+  const local = normalizePhone(raw);
+  return local ? `212${local.slice(1)}` : null;
 }
 
 // Accepts 06/07 numbers with or without +212 / 00212.

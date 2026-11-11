@@ -65,6 +65,12 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+// Asks the server to send the WhatsApp messages the order's new status calls for (no-op while
+// WhatsApp is off). Fire and forget: the order itself is already saved.
+function syncWhatsApp(orderId: string) {
+  fetch("/api/whatsapp/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }), keepalive: true }).catch(() => undefined);
+}
+
 function write(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -81,6 +87,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // 1. Immediate local cache hydration so first render is fast and consistent
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable after mount
     setCart(read(KEYS.cart, []));
     setOrders(read(KEYS.orders, sampleOrders()));
     setConfig(withDefaults(read<Partial<Config> | null>(KEYS.config, null)));
@@ -180,7 +187,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     saveCart([]);
 
     // Cloud firestore write
-    placeOrderInFirestore(order, config.products).catch((err) => {
+    placeOrderInFirestore(order, config.products).then(() => syncWhatsApp(order.id)).catch((err) => {
       console.warn("Firestore order placement error:", err);
     });
 
@@ -195,7 +202,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     saveOrders(
       orders.map((o) => (o.id === orderId ? { ...o, status, history: newHistory } : o)),
     );
-    setOrderStatusInFirestore(orderId, status, newHistory).catch((err) => {
+    setOrderStatusInFirestore(orderId, status, newHistory).then(() => syncWhatsApp(orderId)).catch((err) => {
       console.warn("Firestore setStatus error:", err);
     });
   };
@@ -212,7 +219,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           : o,
       ),
     );
-    confirmOrderAddressInFirestore(orderId, reply, newHistory).catch((err) => {
+    confirmOrderAddressInFirestore(orderId, reply, newHistory).then(() => syncWhatsApp(orderId)).catch((err) => {
       console.warn("Firestore confirmAddress error:", err);
     });
   };

@@ -93,7 +93,7 @@ export async function fetchFullConfig(): Promise<Config> {
     const products: Product[] = prodsSnap.docs.map((d) => d.data() as Product);
 
     return {
-      settings: { ...defaultSettings, ...settings },
+      settings: { ...defaultSettings, ...settings, whatsapp: { ...defaultSettings.whatsapp, ...settings.whatsapp } },
       cities: cities.length > 0 ? cities : defaultCities,
       categories: categories.length > 0 ? categories : defaultCategories,
       products: products.length > 0 ? products : defaultProducts,

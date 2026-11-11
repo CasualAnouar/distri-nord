@@ -11,7 +11,9 @@ import { StatusSteps } from "@/components/StatusSteps";
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { locale, t } = useLocale();
-  const { ready, orders } = useStore();
+  const { ready, orders, settings } = useStore();
+  const wa = settings.whatsapp;
+  const waLink = wa.businessPhone.replace(/\D/g, "").replace(/^0/, "212");
   const order = orders.find((o) => o.id === id);
 
   if (!ready) return <main className="min-h-[60vh]" />;
@@ -35,7 +37,14 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           <StatusSteps status={order.status} />
         </div>
       </section>
-      <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntro}</p>
+      <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{wa.enabled ? t.orderIntroLive(wa.businessPhone) : t.orderIntro}</p>
+      {wa.enabled && waLink && (
+        <div className="mt-4 text-center">
+          <a href={`https://wa.me/${waLink}`} target="_blank" rel="noreferrer" className="inline-block rounded-xl bg-wa px-6 py-3 font-bold text-white">
+            💬 {t.openWhatsApp}
+          </a>
+        </div>
+      )}
       <div className="mt-6">
         <OrderChats order={order} />
       </div>
