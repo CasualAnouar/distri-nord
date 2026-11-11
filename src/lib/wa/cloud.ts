@@ -6,12 +6,15 @@ import { BUTTON_ACTIONS, TEMPLATES, creationPayload, param, templateLangs, type 
 // WHATSAPP_APP_SECRET (webhook signature), WHATSAPP_VERIFY_TOKEN (webhook setup),
 // WHATSAPP_API_VERSION (optional).
 
+// Values pasted into a dashboard often carry stray spaces, line breaks or quotes.
+const clean = (v: string | undefined) => (v ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+
 const env = () => ({
-  token: process.env.WHATSAPP_TOKEN ?? "",
-  phoneId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? "",
-  wabaId: process.env.WHATSAPP_WABA_ID ?? "",
-  appSecret: process.env.WHATSAPP_APP_SECRET ?? "",
-  verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
+  token: clean(process.env.WHATSAPP_TOKEN),
+  phoneId: clean(process.env.WHATSAPP_PHONE_NUMBER_ID),
+  wabaId: clean(process.env.WHATSAPP_WABA_ID),
+  appSecret: clean(process.env.WHATSAPP_APP_SECRET),
+  verifyToken: clean(process.env.WHATSAPP_VERIFY_TOKEN),
   version: process.env.WHATSAPP_API_VERSION || "v25.0",
   base: process.env.WHATSAPP_GRAPH_URL || "https://graph.facebook.com", // overridable for local tests
 });
