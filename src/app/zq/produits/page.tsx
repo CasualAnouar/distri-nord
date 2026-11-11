@@ -7,6 +7,9 @@ import { useStore } from "@/lib/store";
 import { formatDh, lotSaving } from "@/lib/shop";
 import { ProductTile } from "@/components/ProductTile";
 import { fileToDataUrl } from "@/lib/product-image";
+
+// An uploaded photo arrives as a data URL, and comes back from the server as its own image address.
+const isUpload = (image?: string) => Boolean(image?.startsWith("data:") || image?.startsWith("/api/images/"));
 import { Field, Modal, Toggle, inputCls, num } from "@/components/admin/ui";
 
 const tags: { value: Product["tag"] | ""; label: string }[] = [
@@ -52,7 +55,7 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
           <input className={inputCls} inputMode="numeric" value={p.barcode ?? ""} onChange={(e) => set({ barcode: e.target.value.replace(/\D/g, "") || undefined })} placeholder="6111…" />
         </Field>
         <Field label="Photo (lien)">
-          <input className={inputCls} value={p.image?.startsWith("data:") ? "Photo importée" : (p.image ?? "")} readOnly={p.image?.startsWith("data:")} onChange={(e) => set({ image: e.target.value.trim() || undefined })} placeholder="https://…" />
+          <input className={inputCls} value={isUpload(p.image) ? "Photo importée" : (p.image ?? "")} readOnly={isUpload(p.image)} onChange={(e) => set({ image: e.target.value.trim() || undefined })} placeholder="https://…" />
         </Field>
         <div className="flex gap-2">
           <label className="cursor-pointer rounded-lg bg-navy-900 px-3 py-2 text-sm font-semibold text-white">

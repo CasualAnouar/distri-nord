@@ -1,0 +1,201 @@
+"use server";
+
+import { headers } from "next/headers";
+import { updateTag } from "next/cache";
+import { adminAuthorized } from "@/lib/admin-auth";
+import type { City, Config, Settings } from "@/lib/config";
+import type { Category, Product } from "@/data/products";
+import { cartTotals, normalizePhone, type AddressReply, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
+import {
+  STORE_TAG,
+  createOrder,
+  deleteCategory,
+  deleteCity,
+  deleteProduct,
+  getFreshConfig,
+  getOrder,
+  listOrders,
+  patchProduct,
+  saveAddressReply,
+  updateOrderStatus,
+  writeCategory,
+  writeCity,
+  writeProduct,
+  writeSettings,
+} from "@/lib/server/data";
+
+// Every change to the store goes through these server actions. Shop actions re-check everything
+// the browser sent; dashboard actions also check the seller's login, since a server action can be
+// called from any page.
+
+export type PlaceOrderResult =
+  | { ok: true; orderId: string }
+  | { ok: false; error: "minCart" | "stock" | "unavailable" | "lotOnly" | "city" | "customer" | "server"; productName?: string };
+
+class Refused extends Error {
+  constructor(
+    readonly code: Exclude<PlaceOrderResult, { ok: true }>["error"],
+    readonly productName?: string,
+  ) {
+    super(code);
+  }
+}
+
+const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+/** Hook for the WhatsApp integration: called after every order change, with the saved order. */
+async function afterOrderChange(order: Order) {
+  void order;
+}
+
+export async function placeOrder(lines: CartLine[], rawCustomer: Customer, locale: "fr" | "ar"): Promise<PlaceOrderResult> {
+  try {
+    const config = await getFreshConfig();
+    const phone = normalizePhone(str(rawCustomer?.phone, 30));
+    const customer: Customer = {
+      name: str(rawCustomer?.name, 120),
+      phone: phone ?? "",
+      city: str(rawCustomer?.city, 60),
+      district: str(rawCustomer?.district, 120),
+      address: str(rawCustomer?.address),
+      landmark: str(rawCustomer?.landmark),
+      note: str(rawCustomer?.note, 500),
+    };
+    if (!customer.name || !phone) return { ok: false, error: "customer" };
+    const city = config.cities.find((c) => c.id === customer.city && c.active);
+    if (customer.city && !city) return { ok: false, error: "city" };
+
+    const clean = (Array.isArray(lines) ? lines : [])
+      .filter((l) => l && typeof l.productId === "string" && (l.mode === "lot" || l.mode === "unit") && Number.isInteger(l.qty) && l.qty > 0 && l.qty <= 10000)
+      .map((l) => ({ productId: l.productId, mode: l.mode, qty: l.qty }));
+    if (!clean.length) return { ok: false, error: "unavailable" };
+
+    const order = await createOrder(
+      clean.map((l) => l.productId),
+      (products) => {
+        const units = new Map<string, number>();
+        const orderLines = clean.map((l) => {
+          const p = products.get(l.productId);
+          if (!p || p.hidden) throw new Refused("unavailable", p?.name);
+          if (l.mode === "unit" && (p as Product & { lotOnly?: boolean }).lotOnly) throw new Refused("lotOnly", p.name);
+          const unitsPerLine = l.mode === "lot" ? p.lot.qty : 1;
+          units.set(p.id, (units.get(p.id) ?? 0) + unitsPerLine * l.qty);
+          if ((units.get(p.id) ?? 0) > p.stock) throw new Refused("stock", p.name);
+          return { ...l, name: p.name, size: p.size, unitsPerLine, price: (l.mode === "lot" ? p.lot.price : p.unitPrice) * l.qty };
+        });
+        const t = cartTotals(clean, (id) => products.get(id), { cities: config.cities, minCart: config.settings.minCart, cityId: customer.city });
+        if (t.missing > 0) throw new Refused("minCart");
+        const now = new Date().toISOString();
+        return {
+          createdAt: now,
+          locale: locale === "ar" ? "ar" : "fr",
+          lines: orderLines,
+          subtotal: t.subtotal,
+          delivery: t.delivery,
+          total: t.total,
+          customer,
+          status: "new",
+          history: [{ status: "new", at: now }],
+        };
+      },
+    );
+    updateTag(STORE_TAG); // stock changed
+    await afterOrderChange(order);
+    return { ok: true, orderId: order.id };
+  } catch (err) {
+    if (err instanceof Refused) return { ok: false, error: err.code, productName: err.productName };
+    console.error("placeOrder failed:", err);
+    return { ok: false, error: "server" };
+  }
+}
+
+/** The buyer's answer to the address question, from the order page. */
+export async function confirmOrderAddress(orderId: string, reply: AddressReply): Promise<Order | null> {
+  const clean: AddressReply | null =
+    reply?.via === "button"
+      ? { via: "button" }
+      : reply?.via === "text" && str(reply.text)
+        ? { via: "text", text: str(reply.text) }
+        : reply?.via === "location" && Number.isFinite(reply.lat) && Number.isFinite(reply.lng)
+          ? { via: "location", lat: Number(reply.lat), lng: Number(reply.lng) }
+          : null;
+  if (!clean) return null;
+  const order = await saveAddressReply(str(orderId, 24), clean);
+  if (order) await afterOrderChange(order);
+  return order;
+}
+
+/** Latest state of one order, for the buyer's order page. */
+export async function fetchOrder(orderId: string): Promise<Order | null> {
+  return getOrder(str(orderId, 24));
+}
+
+// Dashboard
+
+async function requireAdmin() {
+  if (!adminAuthorized((await headers()).get("authorization"))) throw new Error("Unauthorized");
+}
+
+const statuses: OrderStatus[] = ["new", "confirmed", "shipping", "delivered", "cancelled"];
+
+export async function setOrderStatus(orderId: string, status: OrderStatus): Promise<Order | null> {
+  await requireAdmin();
+  if (!statuses.includes(status)) return null;
+  const order = await updateOrderStatus(str(orderId, 24), status);
+  if (order) await afterOrderChange(order);
+  return order;
+}
+
+export async function fetchDashboard(): Promise<{ config: Config; orders: Order[] }> {
+  await requireAdmin();
+  const [config, orders] = await Promise.all([getFreshConfig(), listOrders()]);
+  return { config, orders };
+}
+
+export async function saveSettings(patch: Partial<Settings>) {
+  await requireAdmin();
+  await writeSettings(patch);
+  updateTag(STORE_TAG);
+}
+
+export async function saveCity(city: City) {
+  await requireAdmin();
+  await writeCity(city);
+  updateTag(STORE_TAG);
+}
+
+export async function removeCity(id: string) {
+  await requireAdmin();
+  await deleteCity(id);
+  updateTag(STORE_TAG);
+}
+
+export async function saveCategory(cat: Category) {
+  await requireAdmin();
+  await writeCategory(cat);
+  updateTag(STORE_TAG);
+}
+
+export async function removeCategory(id: string) {
+  await requireAdmin();
+  await deleteCategory(id);
+  updateTag(STORE_TAG);
+}
+
+export async function saveProduct(p: Product) {
+  await requireAdmin();
+  await writeProduct(p);
+  updateTag(STORE_TAG);
+}
+
+export async function updateProduct(id: string, patch: Partial<Product>) {
+  await requireAdmin();
+  await patchProduct(id, patch);
+  updateTag(STORE_TAG);
+}
+
+export async function removeProduct(id: string) {
+  await requireAdmin();
+  await deleteProduct(id);
+  updateTag(STORE_TAG);
+}

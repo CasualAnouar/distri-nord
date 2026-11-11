@@ -15,7 +15,7 @@ Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesal
 Next.js 16 (App Router) · Tailwind CSS 4 · Vercel. Same stack as Talismans Morocco, so Supabase can be added the same way.
 
 ## Demo mode
-There is no backend yet. Cart, orders and the whole configuration live in the browser's `localStorage` (`src/lib/store.tsx`) and sync between tabs. Open the shop and the dashboard side by side on the same device to show the full loop. "Réinitialiser" in the admin restores the sample orders.
+Products, settings, zones and orders live in Firestore and are read and written only on the server (`src/lib/server/data.ts`, server actions in `src/lib/actions.ts`). Shop pages are rendered with the real catalogue and cached; every dashboard change refreshes them. Only the cart is kept in the browser. To test locally without touching the live data, run the Firestore emulator and set `FIRESTORE_EMULATOR_HOST`.
 
 The WhatsApp conversations (`src/lib/whatsapp.ts`) are scripted from the order status. The buttons inside the chat change the status, just like quick replies will.
 

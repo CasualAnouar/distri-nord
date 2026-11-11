@@ -16,7 +16,7 @@ const links = [
 export function AdminNav() {
   const pathname = usePathname();
   const base = `/${pathname.split("/").filter(Boolean)[0] ?? ""}`;
-  const { orders, resetDemo, settings } = useStore();
+  const { orders, settings } = useStore();
   const pending = orders.filter((o) => o.status === "new").length;
   return (
     <header className="sticky top-0 z-30 bg-navy-950 text-white">
@@ -38,12 +38,6 @@ export function AdminNav() {
           ))}
         </nav>
         <div className="ms-auto flex items-center gap-2 text-sm">
-          <button
-            onClick={() => confirm("Remettre la démo à zéro ? Les commandes, produits, zones et paramètres reviennent aux exemples.") && resetDemo()}
-            className="rounded-lg px-3 py-2 text-white/60 hover:text-white"
-          >
-            ↺ Réinitialiser
-          </button>
           <Link href="/fr" className="rounded-lg bg-sun-400 px-3 py-2 font-bold text-navy-950">Voir la boutique</Link>
         </div>
       </div>
