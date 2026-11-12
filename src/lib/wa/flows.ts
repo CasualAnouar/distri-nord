@@ -309,11 +309,12 @@ async function onMessage(db: Firestore, msg: InMessage, settings: Settings, site
       return;
     }
     // A message about an older order, or a general question: thank them and pass it to the seller.
-    const lang: TemplateLang = "fr";
+    // Reply in the language they write in (Arabic script), otherwise in their last order's language.
+    const writesArabic = /[\u0600-\u06FF]/.test(inboundText(msg));
     const seller = settings.whatsapp.sellerAlerts ? waId(settings.sellerPhone) : null;
     const known = await db.collection("orders").where("customer.phone", "==", normalizePhone(from) ?? "-").get();
     const last = known.docs.map((d) => d.data() as Order).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    const l: TemplateLang = last?.locale === "ar" ? "ar" : lang;
+    const l: TemplateLang = writesArabic || last?.locale === "ar" ? "ar" : "fr";
     if (last) {
       await inLog(last.id, "buyer");
       await deliver(db, last.id, "buyer", say.thanks[l], () => sendText(from, say.thanks[l]));
