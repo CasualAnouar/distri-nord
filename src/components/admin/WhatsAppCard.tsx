@@ -88,7 +88,7 @@ export function WhatsAppCard() {
   return (
     <Card
       title="WhatsApp"
-      subtitle="Éteint : le client envoie sa commande depuis son WhatsApp et vous envoyez chaque message en un clic depuis Commandes (gratuit, sans Meta). Allumé : messages automatiques par l'API Cloud de Meta (numéro dédié et validation Meta nécessaires)."
+      subtitle="Éteint : vous envoyez chaque message au client depuis le téléphone de la boutique, en un clic depuis Commandes (gratuit, sans Meta). Allumé : messages automatiques par l'API Cloud de Meta (numéro dédié et validation Meta nécessaires)."
       action={
         <div className="flex items-center gap-2 text-sm font-semibold">
           {w.enabled ? "Automatique (API Meta)" : "Liens WhatsApp (sans Meta)"}

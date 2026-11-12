@@ -1,9 +1,8 @@
 import type { Config } from "./config";
 import { formatDh, waId, type Order, type OrderStatus } from "./shop";
 
-// WhatsApp without the Meta API: wa.me links that open the sender's own WhatsApp with the message
-// already written. The buyer sends the order to the seller; the seller sends each status update
-// to the buyer, in the language the order was placed in.
+// WhatsApp without the Meta API: wa.me links that open the shop phone's WhatsApp with the message for
+// the customer already written, in the language the order was placed in. The customer does nothing.
 
 export function waUrl(phone: string, text: string) {
   const id = waId(phone);
@@ -27,34 +26,6 @@ function address(o: Order, config: Config, l: L) {
   return parts.length ? parts.join(", ") + landmark : "";
 }
 
-// Buyer → seller, sent from the order page right after checkout.
-export function orderMessage(o: Order, config: Config) {
-  const l = lang(o);
-  const addr = address(o, config, l);
-  const total = formatDh(o.total, l);
-  if (l === "ar")
-    return [
-      `السلام عليكم، هذا طلبي *${o.id}*:`,
-      items(o, "ar"),
-      `💵 المبلغ عند الاستلام: *${total}*`,
-      `👤 ${o.customer.name} · ${o.customer.phone}`,
-      addr ? `🏠 ${addr}` : `🏠 ${cityOf(o, config, "ar") ? `${cityOf(o, config, "ar")} · ` : ""}سأرسل لكم موقعي 📍 هنا.`,
-      o.customer.note ? `📝 ${o.customer.note}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  return [
-    `Salam, voici ma commande *${o.id}* :`,
-    items(o, "fr"),
-    `💵 À payer à la livraison : *${total}*`,
-    `👤 ${o.customer.name} · ${o.customer.phone}`,
-    addr ? `🏠 ${addr}` : `🏠 ${cityOf(o, config, "fr") ? `${cityOf(o, config, "fr")} · ` : ""}Je vous envoie ma position 📍 ici.`,
-    o.customer.note ? `📝 ${o.customer.note}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
 // Seller → buyer: the message that goes with each status.
 export function statusMessage(o: Order, status: OrderStatus, config: Config) {
   const l = lang(o);
@@ -67,8 +38,8 @@ export function statusMessage(o: Order, status: OrderStatus, config: Config) {
     switch (status) {
       case "new":
         return addr
-          ? `السلام عليكم ${first} 👋\nشكراً على طلبك *${o.id}* من ${store}.\nالمبلغ عند الاستلام: *${total}*\n\nهل هذا هو العنوان الصحيح؟\n${addr}\nيمكنك أيضاً إرسال موقعك 📍.`
-          : `السلام عليكم ${first} 👋\nشكراً على طلبك *${o.id}* من ${store}.\nالمبلغ عند الاستلام: *${total}*\n\nأرسل لنا موقعك 📍 أو اكتب عنوانك من فضلك.`;
+          ? `السلام عليكم ${first} 👋\nشكراً على طلبك *${o.id}* من ${store}.\n${items(o, "ar")}\nالمبلغ عند الاستلام: *${total}*\n\nهل هذا هو العنوان الصحيح؟\n${addr}\nيمكنك أيضاً إرسال موقعك 📍.`
+          : `السلام عليكم ${first} 👋\nشكراً على طلبك *${o.id}* من ${store}.\n${items(o, "ar")}\nالمبلغ عند الاستلام: *${total}*\n\nأرسل لنا موقعك 📍 أو اكتب عنوانك من فضلك.`;
       case "confirmed":
         return `تم تأكيد طلبك *${o.id}* ✅\nالتوصيل متوقع ${settings.deliveryWindow.ar}.\nالمبلغ عند الاستلام: *${total}*.`;
       case "shipping":
@@ -82,8 +53,8 @@ export function statusMessage(o: Order, status: OrderStatus, config: Config) {
   switch (status) {
     case "new":
       return addr
-        ? `Salam ${first} 👋\nMerci pour votre commande *${o.id}* chez ${store}.\nÀ payer à la livraison : *${total}*\n\nEst-ce bien la bonne adresse ?\n${addr}\nVous pouvez aussi nous envoyer votre position 📍.`
-        : `Salam ${first} 👋\nMerci pour votre commande *${o.id}* chez ${store}.\nÀ payer à la livraison : *${total}*\n\nEnvoyez-nous votre position 📍 ou écrivez votre adresse, s'il vous plaît.`;
+        ? `Salam ${first} 👋\nMerci pour votre commande *${o.id}* chez ${store}.\n${items(o, "fr")}\nÀ payer à la livraison : *${total}*\n\nEst-ce bien la bonne adresse ?\n${addr}\nVous pouvez aussi nous envoyer votre position 📍.`
+        : `Salam ${first} 👋\nMerci pour votre commande *${o.id}* chez ${store}.\n${items(o, "fr")}\nÀ payer à la livraison : *${total}*\n\nEnvoyez-nous votre position 📍 ou écrivez votre adresse, s'il vous plaît.`;
     case "confirmed":
       return `Votre commande *${o.id}* est confirmée ✅\nLivraison prévue ${settings.deliveryWindow.fr}.\nÀ payer à la livraison : *${total}*.`;
     case "shipping":
