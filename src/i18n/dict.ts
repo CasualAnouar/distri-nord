@@ -53,7 +53,6 @@ const fr = {
   placeOrder: "Valider la commande",
   orderPlaced: "Commande envoyée !",
   orderNumber: "Commande",
-  orderIntro: "Vous allez recevoir un message WhatsApp pour confirmer votre adresse, partager votre position ou l'écrire. Voici ce que vous verrez :",
   orderNotFound: "Commande introuvable. Vérifiez le lien reçu sur WhatsApp.",
   orderError: {
     minCart: "Le minimum de commande n'est pas atteint.",
@@ -71,6 +70,8 @@ const fr = {
   demoNote: "Démo : les boutons dans la conversation font avancer la commande, comme le ferait le vrai WhatsApp.",
   orderIntroLive: (phone: string) => `Nous venons de vous écrire sur WhatsApp${phone ? ` depuis le ${phone}` : ""}. Confirmez votre adresse, partagez votre position ou écrivez-la directement dans la conversation.`,
   openWhatsApp: "Ouvrir WhatsApp",
+  orderIntroLinks: "Dernière étape : envoyez votre commande au vendeur sur WhatsApp. Le message est déjà écrit, il suffit d'appuyer sur Envoyer. Vous pourrez ensuite partager votre position 📍 dans la même conversation.",
+  sendOrderWhatsApp: "Envoyer ma commande sur WhatsApp",
   waSending: "Envoi du message WhatsApp en cours…",
   liveNote: "Copie des messages échangés sur WhatsApp. Répondez depuis l'application WhatsApp.",
   howTitle: "Comment ça marche",
@@ -135,7 +136,6 @@ const ar: Dict = {
   placeOrder: "تأكيد الطلب",
   orderPlaced: "تم إرسال الطلب!",
   orderNumber: "الطلب",
-  orderIntro: "ستتوصل برسالة واتساب لتأكيد عنوانك أو إرسال موقعك أو كتابته. هذا ما ستراه:",
   orderNotFound: "الطلب غير موجود. تحقق من الرابط الذي وصلك على واتساب.",
   orderError: {
     minCart: "لم يتم بلوغ الحد الأدنى للطلب.",
@@ -153,6 +153,8 @@ const ar: Dict = {
   demoNote: "عرض تجريبي: الأزرار داخل المحادثة تُقدّم الطلب كما سيفعل واتساب الحقيقي.",
   orderIntroLive: (phone: string) => `راسلناك الآن على واتساب${phone ? ` من الرقم ${phone}` : ""}. أكّد عنوانك أو أرسل موقعك أو اكتبه مباشرة في المحادثة.`,
   openWhatsApp: "فتح واتساب",
+  orderIntroLinks: "الخطوة الأخيرة: أرسل طلبك للبائع على واتساب. الرسالة مكتوبة مسبقاً، فقط اضغط على إرسال. بعد ذلك يمكنك إرسال موقعك 📍 في نفس المحادثة.",
+  sendOrderWhatsApp: "إرسال طلبي على واتساب",
   waSending: "جاري إرسال رسالة واتساب…",
   liveNote: "نسخة من الرسائل المتبادلة على واتساب. أجب من تطبيق واتساب.",
   howTitle: "كيف يعمل",
