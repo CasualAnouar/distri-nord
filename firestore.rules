@@ -22,6 +22,16 @@ service cloud.firestore {
     match /boxes/{docId} {
       allow read, write: if true;
     }
+    // WhatsApp bookkeeping (contacts, processed message ids): server only, via the service account
+    match /wa_contacts/{docId} {
+      allow read, write: if false;
+    }
+    match /wa_inbound/{docId} {
+      allow read, write: if false;
+    }
+    match /wa_messages/{docId} {
+      allow read, write: if false;
+    }
     // Orders & tracking
     match /orders/{orderId} {
       allow read, write: if true;

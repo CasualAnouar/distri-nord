@@ -38,6 +38,33 @@ export type Order = {
   status: OrderStatus;
   history: { status: OrderStatus; at: string }[];
   addressReply?: AddressReply;
+  // Statuses whose WhatsApp message the shop opened from the dashboard (link mode).
+  linkSent?: OrderStatus[];
+  // Real WhatsApp messages for this order (written by the server only).
+  waLog?: WaLogEntry[];
+};
+
+// One WhatsApp message sent or received about an order. "out" = sent by the shop's number.
+// Order lines sorted by product name, A to Z (dashboard and WhatsApp messages).
+export const sortedLines = (o: Order) => [...o.lines].sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
+
+// Allowed status changes: each step in order, cancel until delivered.
+export const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
+  new: ["confirmed", "cancelled"],
+  confirmed: ["shipping", "cancelled"],
+  shipping: ["delivered", "cancelled"],
+  delivered: [],
+  cancelled: [],
+};
+
+export type WaLogEntry = {
+  at: string;
+  party: "buyer" | "seller";
+  dir: "out" | "in";
+  text: string;
+  location?: { lat: number; lng: number };
+  wamid?: string;
+  error?: string;
 };
 
 // How the buyer answered the address question on WhatsApp.
@@ -57,6 +84,7 @@ export function unitsFor(p: Product, mode: Mode, qty: number) {
 
 export function lotSaving(p: Product) {
   const full = p.unitPrice * p.lot.qty;
+  if (p.lotOnly || full <= 0) return 0;
   return Math.round(((full - p.lot.price) / full) * 100);
 }
 
@@ -127,9 +155,12 @@ export function suggestBoxPrices(value: { retail: number; wholesale: number }) {
 
 // --- Cart --------------------------------------------------------------------------------------
 
-/** A cart with any lot line is a wholesale order and uses the wholesale minimum. */
-export function channelOf(lines: CartLine[]): Channel {
-  return lines.some((l) => l.mode === "lot") ? "gros" : "detail";
+/**
+ * A cart with any lot line is a wholesale order and uses the wholesale minimum. Products sold only
+ * by the lot are also on the retail shop, so their lots do not make a cart wholesale.
+ */
+export function channelOf(lines: CartLine[], product?: Lookup["product"]): Channel {
+  return lines.some((l) => l.mode === "lot" && !product?.(l.productId)?.lotOnly) ? "gros" : "detail";
 }
 
 export function cartTotals(
@@ -145,7 +176,7 @@ export function cartTotals(
     subtotal += price;
     count += l.qty;
   }
-  const channel = channelOf(lines);
+  const channel = channelOf(lines, lookup.product);
   // The retail minimum always applies; the wholesale one can only raise it.
   const min = channel === "gros" ? Math.max(opts.minCart, opts.wholesaleMinCart) : opts.minCart;
   const city = opts.cities.find((c) => c.id === opts.cityId);
@@ -158,9 +189,28 @@ export function formatDh(n: number, locale: "fr" | "ar" = "fr") {
   return locale === "ar" ? `${v} درهم` : `${v} DH`;
 }
 
+// WhatsApp id (international digits, no +) for a Moroccan number: 0608252328 -> 212608252328.
+export function waId(raw: string) {
+  const local = normalizePhone(raw);
+  return local ? `212${local.slice(1)}` : null;
+}
+
 // Accepts 06/07 numbers with or without +212 / 00212.
 export function normalizePhone(raw: string) {
   const d = raw.replace(/\D/g, "").replace(/^00/, "");
   const local = d.startsWith("212") ? `0${d.slice(3)}` : d;
   return /^0[67]\d{8}$/.test(local) ? local : null;
+}
+
+/** An amount the dashboard can store (price, stock, lot size): a real number from 0 up to 10 million. */
+export const validAmount = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0 && n < 10_000_000;
+
+/** The amounts of a product (or a change to one) that are not storable, by field name. */
+export function badAmounts(p: Partial<Product>): string[] {
+  const bad: string[] = [];
+  if (p.unitPrice !== undefined && !validAmount(p.unitPrice)) bad.push("unitPrice");
+  if (p.stock !== undefined && !validAmount(p.stock)) bad.push("stock");
+  if (p.lot !== undefined && !(validAmount(p.lot?.price) && validAmount(p.lot?.qty))) bad.push("lot");
+  if (p.position !== undefined && !validAmount(p.position)) bad.push("position");
+  return bad;
 }

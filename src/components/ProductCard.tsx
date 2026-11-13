@@ -12,7 +12,8 @@ import { ProductTile } from "./ProductTile";
 export function ProductCard({ product, channel = "detail" }: { product: Product; channel?: Channel }) {
   const { locale, t } = useLocale();
   const { addToCart, settings, cart } = useStore();
-  const mode = channel === "gros" ? "lot" : "unit";
+  // Lot-only products are never sold by the piece, even in the retail shop.
+  const mode = channel === "gros" || product.lotOnly ? "lot" : "unit";
   const [qty, setQty] = useState(1);
   const [flash, setFlash] = useState(false);
 
@@ -49,7 +50,7 @@ export function ProductCard({ product, channel = "detail" }: { product: Product;
           <h3 className="text-sm font-semibold leading-snug">{product.name}</h3>
           <p className="text-xs text-muted">
             <bdi dir="ltr">{product.size}</bdi>
-            {mode === "lot" && <> · {t.lotOf(product.lot.qty)}</>}
+            {mode === "lot" && <> · {t.lotOf(product.lot.qty)}{product.lotOnly && ` · ${t.lotOnly}`}</>}
           </p>
         </div>
 

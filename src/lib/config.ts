@@ -21,6 +21,15 @@ export type Settings = {
   wholesaleMinCart: number;
   wholesaleTitle: Localized;
   wholesaleText: Localized;
+  whatsapp: WhatsAppSettings;
+};
+
+// Real WhatsApp (Cloud API). Credentials stay in server env vars; only these switches live here.
+export type WhatsAppSettings = {
+  enabled: boolean; // off = the shop shows the scripted demo conversation
+  businessPhone: string; // number customers receive messages from (shown on the order page)
+  sellerAlerts: boolean; // send new-order alerts and order buttons to sellerPhone
+  linkPhone: string; // link mode: the phone that sends the messages from the dashboard, shown to customers ("" = no number shown)
 };
 
 export type Config = { settings: Settings; cities: City[]; categories: Category[]; products: Product[]; boxes: Box[] };
@@ -33,7 +42,7 @@ export const defaultSettings: Settings = {
     fr: "Achetez à la pièce ou choisissez une box prête à petit prix. Paiement à la livraison, suivi sur WhatsApp.",
     ar: "اشترِ بالحبة أو اختر بوكس واجد بثمن مناسب. الدفع عند الاستلام، والتتبع عبر واتساب.",
   },
-  sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 08 25 23 28",
+  sellerPhone: process.env.NEXT_PUBLIC_SELLER_PHONE || "06 61 67 07 61",
   minCart: 100,
   lowStockAt: 120,
   deliveryWindow: { fr: "aujourd'hui entre 14h et 18h", ar: "اليوم بين 14:00 و 18:00" },
@@ -44,6 +53,7 @@ export const defaultSettings: Settings = {
     fr: "Pour les épiceries, cafés, snacks et grosses commandes. Prix par lot, livraison à Rabat et environs, paiement à la livraison.",
     ar: "للحوانت، المقاهي، السناك والطلبات الكبيرة. الثمن بالعلبة، التوصيل في الرباط ونواحيها، والدفع عند الاستلام.",
   },
+  whatsapp: { enabled: false, businessPhone: "", sellerAlerts: true, linkPhone: "" },
 };
 
 // Delivery zones around the Rabat store. Fees are placeholders.
@@ -58,18 +68,6 @@ export const defaultCities: City[] = [
 ];
 
 export const defaultConfig: Config = { settings: defaultSettings, cities: defaultCities, categories: defaultCategories, products: defaultProducts, boxes: defaultBoxes };
-
-// Fills in anything a stored config from an older demo version lacks.
-export function withDefaults(stored: Partial<Config> | null): Config {
-  if (!stored) return defaultConfig;
-  return {
-    settings: { ...defaultSettings, ...stored.settings },
-    cities: stored.cities ?? defaultCities,
-    categories: stored.categories ?? defaultCategories,
-    products: stored.products ?? defaultProducts,
-    boxes: stored.boxes ?? defaultBoxes,
-  };
-}
 
 export function slugify(s: string) {
   const base = s

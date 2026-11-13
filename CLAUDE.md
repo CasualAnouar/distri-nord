@@ -5,6 +5,7 @@
 - Everything the seller can change (store texts, minimum order, WhatsApp number, delivery window, zones, categories, products) lives in the config (`src/lib/config.ts` defaults, edited from the dashboard's `parametres` and `produits` pages). Never hard-code those values in components; read them from `useStore()`.
 - Never let checkout through below `settings.minCart`.
 - Payment is cash on delivery only.
-- Demo data (cart, orders, config) lives in `localStorage` via `src/lib/store.tsx` until Supabase is wired.
+- Data lives in Firestore and is only touched on the server: reads in `src/lib/server/data.ts` (layouts pass it to `StoreProvider`), writes through server actions in `src/lib/actions.ts` (dashboard actions check the login). Never import Firebase in a client component. Only the cart stays in `localStorage`.
+- The shop is cached; every dashboard action calls `updateTag(STORE_TAG)` so changes show at once.
 - Run `npm run lint && npm run typecheck && npm run build` before pushing.
 - The dashboard's internal route is `src/app/zq` (meaningless on purpose). Never link to it from the shop or name it "admin" anywhere public; it is reached only through `ADMIN_PATH` via `src/proxy.ts`. Dashboard links are built from the current URL prefix, never from an env var.

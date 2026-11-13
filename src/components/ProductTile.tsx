@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Product } from "@/data/products";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
@@ -16,17 +17,25 @@ function isLight(hex: string) {
 function PhotoPreview({ src, name, onClose }: { src: string; name: string; onClose: () => void }) {
   const { t } = useLocale();
   useEffect(() => {
+    // No page scrolling behind the photo.
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+    };
   }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-ink/80 p-4" onClick={onClose} role="dialog" aria-label={name}>
+  // Rendered at the end of <body> so no card or header can clip or cover it.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-ink/90 p-3" onClick={onClose} role="dialog" aria-modal="true" aria-label={name}>
       <button onClick={onClose} className="absolute end-4 top-4 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-ink">✕ {t.close}</button>
       {/* eslint-disable-next-line @next/next/no-img-element -- remote and uploaded photos, sizes unknown */}
-      <img src={src} alt={name} className="max-h-[80vh] max-w-full rounded-2xl bg-white object-contain p-4" onClick={(e) => e.stopPropagation()} />
+      <img src={src} alt={name} className="max-h-[calc(100dvh-5rem)] w-auto max-w-full rounded-2xl bg-white object-contain" onClick={(e) => e.stopPropagation()} />
       <p className="mt-3 text-center text-sm font-semibold text-white">{name}</p>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -44,7 +53,14 @@ export function ProductTile({ product, className = "", compact = false, zoomable
     return (
       <div className={`relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-white ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- remote and uploaded photos, sizes unknown */}
-        <img src={src} alt={product.name} loading="lazy" onError={() => setFailed(src)} className="size-full object-cover" />
+        <img
+          src={src}
+          alt={product.name}
+          loading="lazy"
+          onError={() => setFailed(src)}
+          onClick={zoomable ? () => setPreview(true) : undefined}
+          className={`size-full object-cover ${zoomable ? "cursor-zoom-in" : ""}`}
+        />
         {zoomable && (
           <button
             type="button"

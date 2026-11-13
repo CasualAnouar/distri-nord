@@ -5,6 +5,7 @@ import "../globals.css";
 import { isLocale, locales } from "@/i18n/dict";
 import { LocaleProvider } from "@/i18n/locale";
 import { StoreProvider } from "@/lib/store";
+import { getStoreConfig, publicConfig } from "@/lib/server/data";
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
@@ -14,6 +15,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#0b2654" };
 
+// Pages are built once and kept in the cache; the dashboard refreshes them on every change.
+export const revalidate = 300;
+
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
@@ -21,11 +25,12 @@ export function generateStaticParams() {
 export default async function LocaleLayout({ children, params }: { children: React.ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
+  const config = publicConfig(await getStoreConfig());
   return (
     <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={fontVariables}>
       <body className="min-h-dvh antialiased">
         <LocaleProvider locale={locale}>
-          <StoreProvider>
+          <StoreProvider initialConfig={config}>
             <Header />
             {children}
           </StoreProvider>

@@ -14,8 +14,10 @@ export type Product = {
   color: string; // tile background
   tag?: "promo" | "new" | "best";
   hidden?: boolean;
+  lotOnly?: boolean; // sold only as a full lot, never by the piece
   image?: string; // photo URL or uploaded data URL
   barcode?: string; // EAN: photo fetched from Open Food Facts when no image is set
+  position?: number; // place in the shop list, set by dragging in the dashboard (lowest first)
 };
 
 export const defaultCategories: Category[] = [
