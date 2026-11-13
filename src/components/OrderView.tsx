@@ -53,7 +53,7 @@ export function OrderView({ initial }: { initial: Order | null }) {
           <StatusSteps status={order.status} />
         </div>
       </section>
-      {!wa.enabled && <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntroLinks(settings.sellerPhone)}</p>}
+      {!wa.enabled && <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntroLinks(wa.linkPhone)}</p>}
       {wa.enabled && <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntroLive(wa.businessPhone)}</p>}
       {wa.enabled && waLink && (
         <div className="mt-4 text-center">

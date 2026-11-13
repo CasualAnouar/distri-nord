@@ -116,6 +116,14 @@ export function WhatsAppCard() {
             <Toggle checked={w.sellerAlerts} onChange={(sellerAlerts) => setW({ ...w, sellerAlerts })} label="Alertes vendeur" />
           </div>
         </div>
+        {!w.enabled && (
+          <Field
+            label="Téléphone qui envoie les messages (mode liens)"
+            hint="Le numéro du téléphone sur lequel vous appuyez sur les boutons de Commandes. Il est annoncé au client après sa commande. Laissez vide pour n'afficher aucun numéro."
+          >
+            <input type="tel" dir="ltr" className={inputCls} value={w.linkPhone} onChange={(e) => setW({ ...w, linkPhone: e.target.value })} placeholder="06 00 00 00 00" />
+          </Field>
+        )}
         {dirty && (
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setW(settings.whatsapp)} className="rounded-xl px-4 py-2 text-sm font-semibold text-muted">Annuler</button>

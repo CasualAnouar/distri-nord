@@ -23,6 +23,7 @@ export type WhatsAppSettings = {
   enabled: boolean; // off = the shop shows the scripted demo conversation
   businessPhone: string; // number customers receive messages from (shown on the order page)
   sellerAlerts: boolean; // send new-order alerts and order buttons to sellerPhone
+  linkPhone: string; // link mode: the phone that sends the messages from the dashboard, shown to customers ("" = no number shown)
 };
 
 export type Config = { settings: Settings; cities: City[]; categories: Category[]; products: Product[] };
@@ -39,7 +40,7 @@ export const defaultSettings: Settings = {
   minCart: 100,
   lowStockAt: 120,
   deliveryWindow: { fr: "aujourd'hui entre 14h et 18h", ar: "اليوم بين 14:00 و 18:00" },
-  whatsapp: { enabled: false, businessPhone: "", sellerAlerts: true },
+  whatsapp: { enabled: false, businessPhone: "", sellerAlerts: true, linkPhone: "" },
 };
 
 // Delivery zones around the Rabat store. Fees are placeholders.

@@ -30,7 +30,8 @@ type Store = {
   /** Dashboard only: every order, refreshed every few seconds. */
   orders: Order[];
   placeOrder: (customer: Customer, locale: "fr" | "ar") => Promise<PlaceOrderResult>;
-  setStatus: (orderId: string, status: OrderStatus) => Promise<Order | null>;
+  setStatus: (orderId: string, status: OrderStatus, linkSent?: boolean) => Promise<{ order: Order; changed: boolean } | null>;
+  markLinkSent: (orderId: string, status: OrderStatus) => Promise<Order | null>;
   confirmAddress: (orderId: string, reply: AddressReply) => Promise<Order | null>;
   totals: (cityId?: string) => ReturnType<typeof cartTotals>;
   saveSettings: (patch: Partial<Settings>) => void;
@@ -181,8 +182,14 @@ export function StoreProvider({
     return result;
   };
 
-  const setStatus = async (orderId: string, status: OrderStatus) => {
-    const order = await actions.setOrderStatus(orderId, status);
+  const setStatus = async (orderId: string, status: OrderStatus, linkSent = false) => {
+    const r = await actions.setOrderStatus(orderId, status, linkSent);
+    if (r) setOrders((list) => list.map((o) => (o.id === r.order.id ? r.order : o)));
+    return r;
+  };
+
+  const markLinkSent = async (orderId: string, status: OrderStatus) => {
+    const order = await actions.markOrderLinkSent(orderId, status);
     if (order) setOrders((list) => list.map((o) => (o.id === order.id ? order : o)));
     return order;
   };
@@ -222,6 +229,7 @@ export function StoreProvider({
     orders,
     placeOrder,
     setStatus,
+    markLinkSent,
     confirmAddress,
     totals,
     saveSettings: (patch) => save((c) => ({ ...c, settings: { ...c.settings, ...patch } }), () => actions.saveSettings(patch)),

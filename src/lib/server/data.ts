@@ -18,7 +18,7 @@ import {
 import { firebaseConfigured, getDb } from "@/lib/firebase";
 import { defaultConfig, defaultSettings, type City, type Config, type Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
-import type { AddressReply, Order, OrderStatus } from "@/lib/shop";
+import { NEXT_STATUS, type AddressReply, type Order, type OrderStatus } from "@/lib/shop";
 
 // Every Firestore read and write of the store goes through this file, on the server only.
 
@@ -137,16 +137,34 @@ export async function createOrder(productIds: string[], build: (products: Map<st
   });
 }
 
-export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order | null> {
+/** Moves an order one step. A change that skips or repeats a step is refused (changed: false). */
+export async function updateOrderStatus(id: string, status: OrderStatus, linkSent = false): Promise<{ order: Order; changed: boolean } | null> {
   const db = getDb();
   return runTransaction(db, async (tx) => {
     const ref = doc(db, C.orders, id);
     const snap = await tx.get(ref);
     if (!snap.exists()) return null;
     const order = snap.data() as Order;
-    const next: Order = { ...order, status, history: [...order.history, { status, at: new Date().toISOString() }] };
-    tx.update(ref, { status: next.status, history: next.history });
-    return next;
+    if (!NEXT_STATUS[order.status].includes(status)) return { order, changed: false };
+    const sent = linkSent ? [...new Set([...(order.linkSent ?? []), status])] : order.linkSent;
+    const next: Order = { ...order, status, history: [...order.history, { status, at: new Date().toISOString() }], ...(sent ? { linkSent: sent } : {}) };
+    tx.update(ref, { status: next.status, history: next.history, ...(sent ? { linkSent: sent } : {}) });
+    return { order: next, changed: true };
+  });
+}
+
+/** Records that the dashboard opened the WhatsApp message for this status (link mode). */
+export async function markLinkSent(id: string, status: OrderStatus): Promise<Order | null> {
+  const db = getDb();
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, C.orders, id);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return null;
+    const order = snap.data() as Order;
+    if (order.linkSent?.includes(status)) return order;
+    const linkSent = [...(order.linkSent ?? []), status];
+    tx.update(ref, { linkSent });
+    return { ...order, linkSent };
   });
 }
 

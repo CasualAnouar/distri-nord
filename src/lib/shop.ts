@@ -31,11 +31,25 @@ export type Order = {
   status: OrderStatus;
   history: { status: OrderStatus; at: string }[];
   addressReply?: AddressReply;
+  // Statuses whose WhatsApp message the shop opened from the dashboard (link mode).
+  linkSent?: OrderStatus[];
   // Real WhatsApp messages for this order (written by the server only).
   waLog?: WaLogEntry[];
 };
 
 // One WhatsApp message sent or received about an order. "out" = sent by the shop's number.
+// Order lines sorted by product name, A to Z (dashboard and WhatsApp messages).
+export const sortedLines = (o: Order) => [...o.lines].sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
+
+// Allowed status changes: each step in order, cancel until delivered.
+export const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
+  new: ["confirmed", "cancelled"],
+  confirmed: ["shipping", "cancelled"],
+  shipping: ["delivered", "cancelled"],
+  delivered: [],
+  cancelled: [],
+};
+
 export type WaLogEntry = {
   at: string;
   party: "buyer" | "seller";
