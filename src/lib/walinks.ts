@@ -1,17 +1,12 @@
 import type { Config } from "./config";
 import { formatDh, sortedLines, waId, type Order, type OrderStatus } from "./shop";
 
-// WhatsApp without the Meta API: wa.me links that open the shop phone's WhatsApp with the message for
+// WhatsApp without the Meta API: links that open the shop phone's WhatsApp with the message for
 // the customer already written, in the language the order was placed in. The customer does nothing.
 
-// Emojis came out as "�" in prefilled links, so they are left out until a test confirms they survive.
-const plain = (text: string) =>
-  text
-    .replace(/[ \t]*[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\uFE0F\u200D]+/gu, "")
-    .replace(/•/g, "-")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim();
+// Emojis are safe with api.whatsapp.com/send; the wa.me short link turns them into "�" (checked on a
+// phone, 2026-11-13), so never switch back to wa.me for prefilled text.
+const plain = (text: string) => text.replace(/[ \t]+\n/g, "\n").trim();
 
 export function waUrl(phone: string, text: string) {
   const id = waId(phone);
