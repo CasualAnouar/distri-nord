@@ -6,7 +6,7 @@ import { updateTag } from "next/cache";
 import { adminAuthorized } from "@/lib/admin-auth";
 import type { City, Config, Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
-import { cartTotals, normalizePhone, type AddressReply, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
+import { badAmounts, cartTotals, normalizePhone, type AddressReply, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
 import {
   STORE_TAG,
   createOrder,
@@ -24,6 +24,7 @@ import {
   writeCategory,
   writeCity,
   writeProduct,
+  writeProductOrder,
   writeSettings,
 } from "@/lib/server/data";
 import { syncOrderToWhatsApp } from "@/lib/wa/flows";
@@ -208,12 +209,14 @@ export async function removeCategory(id: string) {
 
 export async function saveProduct(p: Product) {
   await requireAdmin();
+  if (badAmounts(p).length) throw new Error(`Invalid amount: ${badAmounts(p).join(", ")}`);
   await writeProduct(p);
   updateTag(STORE_TAG);
 }
 
 export async function updateProduct(id: string, patch: Partial<Product>) {
   await requireAdmin();
+  if (badAmounts(patch).length) throw new Error(`Invalid amount: ${badAmounts(patch).join(", ")}`);
   await patchProduct(id, patch);
   updateTag(STORE_TAG);
 }
@@ -221,5 +224,12 @@ export async function updateProduct(id: string, patch: Partial<Product>) {
 export async function removeProduct(id: string) {
   await requireAdmin();
   await deleteProduct(id);
+  updateTag(STORE_TAG);
+}
+
+export async function reorderProducts(ids: string[]) {
+  await requireAdmin();
+  if (!Array.isArray(ids) || ids.length > 2000) throw new Error("Bad order");
+  await writeProductOrder([...new Set(ids.filter((id): id is string => typeof id === "string"))]);
   updateTag(STORE_TAG);
 }

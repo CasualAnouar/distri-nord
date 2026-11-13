@@ -110,3 +110,16 @@ export function normalizePhone(raw: string) {
   const local = d.startsWith("212") ? `0${d.slice(3)}` : d;
   return /^0[67]\d{8}$/.test(local) ? local : null;
 }
+
+/** An amount the dashboard can store (price, stock, lot size): a real number from 0 up to 10 million. */
+export const validAmount = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0 && n < 10_000_000;
+
+/** The amounts of a product (or a change to one) that are not storable, by field name. */
+export function badAmounts(p: Partial<Product>): string[] {
+  const bad: string[] = [];
+  if (p.unitPrice !== undefined && !validAmount(p.unitPrice)) bad.push("unitPrice");
+  if (p.stock !== undefined && !validAmount(p.stock)) bad.push("stock");
+  if (p.lot !== undefined && !(validAmount(p.lot?.price) && validAmount(p.lot?.qty))) bad.push("lot");
+  if (p.position !== undefined && !validAmount(p.position)) bad.push("position");
+  return bad;
+}

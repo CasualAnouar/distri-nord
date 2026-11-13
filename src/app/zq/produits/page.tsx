@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Product } from "@/data/products";
 import { slugify } from "@/lib/config";
 import { useStore } from "@/lib/store";
-import { formatDh, lotSaving } from "@/lib/shop";
+import { badAmounts, formatDh, lotSaving, validAmount } from "@/lib/shop";
 import { ProductTile } from "@/components/ProductTile";
 import { fileToDataUrl } from "@/lib/product-image";
 import { DecimalInput, Field, Modal, Toggle, inputCls } from "@/components/admin/ui";
@@ -24,7 +24,7 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
   const [p, setP] = useState<Product>(initial);
   const isNew = !config.products.some((x) => x.id === initial.id);
   const set = (patch: Partial<Product>) => setP({ ...p, ...patch });
-  const valid = p.name.trim() && p.brand.trim() && (p.lotOnly || p.unitPrice > 0) && p.lot.qty > 1 && p.lot.price > 0;
+  const valid = p.name.trim() && p.brand.trim() && (p.lotOnly || p.unitPrice > 0) && p.lot.qty > 1 && p.lot.price > 0 && badAmounts(p).length === 0;
 
   return (
     <form
@@ -135,6 +135,7 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
           </button>
         )}
         <button type="button" onClick={onDone} className="ms-auto rounded-xl px-4 py-2.5 text-sm font-semibold text-muted">Annuler</button>
+        {badAmounts(p).length > 0 && <span className="text-sm font-semibold text-danger">Un nombre est invalide (en rouge) : tapez la bonne valeur.</span>}
         <button type="submit" disabled={!valid} className="rounded-xl bg-navy-900 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">
           {isNew ? "Ajouter le produit" : "Enregistrer"}
         </button>
@@ -143,16 +144,147 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
   );
 }
 
+/**
+ * Drag and drop of the product rows, with a mouse or a finger. Only the grip handle starts a drag
+ * (so the page still scrolls normally on a phone); while it is held, the row follows the pointer
+ * and the page scrolls by itself near the top or bottom of the screen. The order is saved on release.
+ */
+function useRowDrag(visibleIds: string[], onDrop: (ids: string[]) => void) {
+  const [order, setOrder] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const rows = useRef(new Map<string, HTMLElement>());
+  const live = useRef<{ id: string; order: string[]; start: string[]; y: number; frame: number; stop: () => void } | null>(null);
+  const dropRef = useRef(onDrop);
+  useEffect(() => {
+    dropRef.current = onDrop;
+  });
+
+  // Moves the held product to the row under the pointer.
+  const moveTo = (y: number) => {
+    const d = live.current;
+    if (!d) return;
+    let target = -1;
+    d.order.forEach((id, i) => {
+      const r = rows.current.get(id)?.getBoundingClientRect();
+      if (r && y >= r.top && y < r.bottom) target = i;
+    });
+    if (target === -1) {
+      const first = rows.current.get(d.order[0])?.getBoundingClientRect();
+      const last = rows.current.get(d.order[d.order.length - 1])?.getBoundingClientRect();
+      if (first && y < first.top) target = 0;
+      else if (last && y >= last.bottom) target = d.order.length - 1;
+      else return;
+    }
+    if (target === d.order.indexOf(d.id)) return;
+    const next = d.order.filter((id) => id !== d.id);
+    next.splice(target, 0, d.id);
+    d.order = next;
+    setOrder(next);
+  };
+
+  const finish = (save: boolean) => {
+    const d = live.current;
+    if (!d) return;
+    live.current = null;
+    d.stop();
+    setDragId(null);
+    setOrder(null);
+    if (save && d.order.some((id, i) => id !== d.start[i])) dropRef.current(d.order);
+  };
+
+  useEffect(() => () => finish(false), []);
+
+  const start = (id: string, e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || live.current) return;
+    e.preventDefault();
+    // Listen on the whole window: the held row moves in the page, which would break a capture on it.
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId || !live.current) return;
+      ev.preventDefault();
+      live.current.y = ev.clientY;
+      moveTo(ev.clientY);
+    };
+    const onUp = (ev: PointerEvent) => ev.pointerId === e.pointerId && finish(true);
+    const noSelect = (ev: Event) => ev.preventDefault();
+    const tick = () => {
+      const d = live.current;
+      if (!d) return;
+      const edge = 70;
+      const push = d.y < edge ? d.y - edge : d.y > window.innerHeight - edge ? d.y - (window.innerHeight - edge) : 0;
+      const speed = Math.max(-18, Math.min(18, push / 4));
+      if (speed) {
+        window.scrollBy(0, speed);
+        moveTo(d.y);
+      }
+      d.frame = requestAnimationFrame(tick);
+    };
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    document.addEventListener("selectstart", noSelect);
+    const d = {
+      id,
+      order: visibleIds,
+      start: visibleIds,
+      y: e.clientY,
+      frame: requestAnimationFrame(tick),
+      stop: () => {
+        cancelAnimationFrame(d.frame);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        document.removeEventListener("selectstart", noSelect);
+      },
+    };
+    live.current = d;
+    setDragId(id);
+    setOrder(visibleIds);
+  };
+
+  const handleProps = (id: string) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => start(id, e),
+    onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      const step = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+      const from = visibleIds.indexOf(id);
+      if (!step || from + step < 0 || from + step >= visibleIds.length) return;
+      e.preventDefault();
+      const next = [...visibleIds];
+      next.splice(from, 1);
+      next.splice(from + step, 0, id);
+      onDrop(next);
+    },
+  });
+
+  const rowRef = (id: string) => (el: HTMLElement | null) => {
+    if (el) rows.current.set(id, el);
+    else rows.current.delete(id);
+  };
+
+  return { order, dragId, handleProps, rowRef };
+}
+
 export default function AdminProducts() {
-  const { ready, config, categories, settings, updateProduct } = useStore();
+  const { ready, config, categories, settings, updateProduct, reorderProducts } = useStore();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
   const [editing, setEditing] = useState<Product | null>(null);
-  if (!ready) return null;
 
-  const list = config.products.filter(
+  const filtered = config.products.filter(
     (p) => (cat === "all" || p.category === cat) && `${p.name} ${p.brand}`.toLowerCase().includes(q.toLowerCase()),
   );
+  // A drag inside a filtered list moves the products among the places they already hold in the full list.
+  const drag = useRowDrag(
+    filtered.map((p) => p.id),
+    (ids) => {
+      const shown = new Set(ids);
+      let k = 0;
+      reorderProducts(config.products.map((p) => (shown.has(p.id) ? ids[k++] : p.id)));
+    },
+  );
+  if (!ready) return null;
+
+  const byId = new Map(config.products.map((p) => [p.id, p]));
+  const list = drag.order ? drag.order.flatMap((id) => byId.get(id) ?? []) : filtered;
   const blank = (): Product => ({
     id: slugify("produit"),
     name: "",
@@ -163,6 +295,8 @@ export default function AdminProducts() {
     lot: { qty: 12, price: 108 },
     stock: 100,
     color: "#12357a",
+    // A new product goes to the end of the seller's order, once there is one.
+    position: config.products.some((p) => p.position !== undefined) ? Math.max(...config.products.map((p) => p.position ?? -1)) + 1 : undefined,
   });
 
   return (
@@ -171,6 +305,7 @@ export default function AdminProducts() {
         <div>
           <h1 className="text-2xl font-extrabold">Produits & stock</h1>
           <p className="text-sm text-muted">{config.products.length} produits · les changements apparaissent tout de suite dans la boutique.</p>
+          <p className="text-sm text-muted">Pour changer l&apos;ordre dans la boutique, maintenez la poignée ⠿ et glissez le produit vers le haut ou le bas.</p>
         </div>
         <button onClick={() => setEditing(blank())} className="rounded-xl bg-sun-400 px-4 py-2.5 text-sm font-bold text-navy-950">+ Nouveau produit</button>
       </div>
@@ -184,9 +319,10 @@ export default function AdminProducts() {
         </select>
       </div>
       <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-white">
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="w-full min-w-[860px] text-sm">
           <thead className="bg-paper text-xs text-muted">
             <tr>
+              <th className="w-10 p-3"><span className="sr-only">Ordre</span></th>
               <th className="p-3 text-start">Produit</th>
               <th className="p-3 text-start">Prix pièce (DH)</th>
               <th className="p-3 text-start">Prix lot (DH)</th>
@@ -198,7 +334,22 @@ export default function AdminProducts() {
           </thead>
           <tbody className="divide-y divide-line">
             {list.map((p) => (
-              <tr key={p.id} className={p.hidden ? "opacity-50" : ""}>
+              <tr
+                key={p.id}
+                ref={drag.rowRef(p.id)}
+                className={`${p.hidden ? "opacity-50" : ""} ${drag.dragId === p.id ? "relative z-10 bg-sun-400/20 shadow-lg outline-2 outline-sun-400" : ""}`}
+              >
+                <td className="py-3 ps-2 pe-0">
+                  <button
+                    type="button"
+                    {...drag.handleProps(p.id)}
+                    aria-label={`Déplacer ${p.name} (flèches haut et bas)`}
+                    title="Maintenir et glisser pour changer l'ordre"
+                    className={`grid h-11 w-9 touch-none select-none place-items-center rounded-lg text-xl text-muted hover:bg-paper ${drag.dragId === p.id ? "cursor-grabbing bg-paper text-ink" : "cursor-grab"}`}
+                  >
+                    ⠿
+                  </button>
+                </td>
                 <td className="p-3">
                   <div className="flex items-center gap-3">
                     <ProductTile product={p} compact className="w-14 shrink-0 rounded-lg" />
@@ -229,7 +380,7 @@ export default function AdminProducts() {
                       className={`!w-24 ${p.stock === 0 ? "border-danger text-danger" : p.stock < settings.lowStockAt ? "border-warn" : ""}`}
                       aria-label={`Stock : ${p.name}`}
                     />
-                    {p.stock === 0 ? <span className="text-xs font-bold text-danger">Rupture</span> : p.stock < settings.lowStockAt ? <span className="text-xs font-bold text-warn">Bas</span> : null}
+                    {!validAmount(p.stock) ? <span className="text-xs font-bold text-danger">À corriger</span> : p.stock === 0 ? <span className="text-xs font-bold text-danger">Rupture</span> : p.stock < settings.lowStockAt ? <span className="text-xs font-bold text-warn">Bas</span> : null}
                   </div>
                 </td>
                 <td className="p-3">
@@ -245,7 +396,7 @@ export default function AdminProducts() {
             ))}
             {list.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-muted">Aucun produit.</td>
+                <td colSpan={8} className="p-8 text-center text-muted">Aucun produit.</td>
               </tr>
             )}
           </tbody>

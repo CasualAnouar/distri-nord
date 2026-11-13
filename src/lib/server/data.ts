@@ -13,6 +13,7 @@ import {
   runTransaction,
   setDoc,
   updateDoc,
+  writeBatch,
   type DocumentData,
 } from "firebase/firestore";
 import { firebaseConfigured, getDb } from "@/lib/firebase";
@@ -62,8 +63,16 @@ async function readConfig(): Promise<Config> {
     settings: { ...defaultSettings, ...stored, whatsapp: { ...defaultSettings.whatsapp, ...stored.whatsapp } },
     cities: citiesSnap.docs.map((d) => d.data() as City),
     categories: catsSnap.docs.map((d) => d.data() as Category),
-    products: prodsSnap.docs.map((d) => withImageUrl(d.data() as Product)),
+    products: sortProducts(prodsSnap.docs.map((d) => withImageUrl(d.data() as Product))),
   };
+}
+
+/** The seller's order (dashboard drag and drop). Products never placed come last, in their old order. */
+function sortProducts(products: Product[]): Product[] {
+  return products
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => (a.p.position ?? Infinity) - (b.p.position ?? Infinity) || a.i - b.i)
+    .map(({ p }) => p);
 }
 
 /**
@@ -240,6 +249,18 @@ export async function patchProduct(id: string, patch: Partial<Product>) {
   const entries = Object.entries(patch).filter(([k, v]) => !(k === "image" && isServedImage(v as string | undefined)));
   if (!entries.length) return;
   await updateDoc(doc(getDb(), C.products, id), Object.fromEntries(entries.map(([k, v]) => [k, v === undefined ? deleteField() : v])));
+}
+
+/** Saves the shop order: each listed product gets its place (0, 1, 2…). Unknown ids are skipped. */
+export async function writeProductOrder(ids: string[]) {
+  const db = getDb();
+  const existing = new Set((await getDocs(collection(db, C.products))).docs.map((d) => d.id));
+  const known = ids.filter((id) => existing.has(id));
+  for (let start = 0; start < known.length; start += 450) {
+    const batch = writeBatch(db);
+    known.slice(start, start + 450).forEach((id, i) => batch.update(doc(db, C.products, id), { position: start + i }));
+    await batch.commit();
+  }
 }
 
 export async function deleteProduct(id: string) {
