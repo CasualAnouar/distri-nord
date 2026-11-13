@@ -5,6 +5,7 @@ import { useCityName, useStore } from "@/lib/store";
 import { formatDh, mapsUrl, type Order, type OrderStatus } from "@/lib/shop";
 import { dicts } from "@/i18n/dict";
 import { OrderChats } from "@/components/OrderChats";
+import { statusMessage, waUrl } from "@/lib/walinks";
 
 const t = dicts.fr;
 const badge: Record<OrderStatus, string> = {
@@ -25,7 +26,18 @@ const ago = (iso: string) => {
 };
 
 export default function AdminOrders() {
-  const { ready, orders, setStatus } = useStore();
+  const { ready, orders, setStatus, config } = useStore();
+  const live = config.settings.whatsapp.enabled;
+  // Without the WhatsApp API, each status change opens the seller's WhatsApp with the message for the
+  // customer already written (in the order's language). window.open must run inside the click.
+  const notify = (o: Order, to: OrderStatus) => {
+    const url = live ? null : waUrl(o.customer.phone, statusMessage(o, to, config));
+    if (url) window.open(url, "_blank", "noopener");
+  };
+  const move = (o: Order, to: OrderStatus) => {
+    notify(o, to);
+    setStatus(o.id, to);
+  };
   const cityName = useCityName();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -112,13 +124,27 @@ export default function AdminOrders() {
                   </div>
                   <div className="flex flex-col gap-2">
                     {action && (
-                      <button onClick={() => setStatus(o.id, action.to)} className="rounded-xl bg-navy-900 px-4 py-3 text-sm font-bold text-white">
+                      <button onClick={() => move(o, action.to)} className="rounded-xl bg-navy-900 px-4 py-3 text-sm font-bold text-white">
                         {action.label}
                       </button>
                     )}
-                    <button onClick={() => setChat(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">💬 Voir la conversation WhatsApp</button>
+                    {live ? (
+                      <button onClick={() => setChat(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">💬 Voir la conversation WhatsApp</button>
+                    ) : (
+                      waUrl(o.customer.phone, "") && (
+                        <a
+                          href={waUrl(o.customer.phone, statusMessage(o, o.status, config))!}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-xl bg-wa px-4 py-3 text-center text-sm font-bold text-white"
+                        >
+                          💬 Écrire au client sur WhatsApp
+                        </a>
+                      )
+                    )}
+                    {!live && <p className="text-xs text-muted">Chaque bouton ouvre WhatsApp avec le message pour le client déjà écrit, dans sa langue : appuyez sur Envoyer.</p>}
                     {o.status !== "delivered" && o.status !== "cancelled" && (
-                      <button onClick={() => confirm(`Annuler ${o.id} ?`) && setStatus(o.id, "cancelled")} className="rounded-xl border border-danger/40 px-4 py-2.5 text-sm font-semibold text-danger">
+                      <button onClick={() => confirm(`Annuler ${o.id} ?`) && move(o, "cancelled")} className="rounded-xl border border-danger/40 px-4 py-2.5 text-sm font-semibold text-danger">
                         Annuler la commande
                       </button>
                     )}

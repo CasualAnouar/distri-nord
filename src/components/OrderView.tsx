@@ -53,7 +53,8 @@ export function OrderView({ initial }: { initial: Order | null }) {
           <StatusSteps status={order.status} />
         </div>
       </section>
-      <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{wa.enabled ? t.orderIntroLive(wa.businessPhone) : t.orderIntro}</p>
+      {!wa.enabled && <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntroLinks(settings.sellerPhone)}</p>}
+      {wa.enabled && <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntroLive(wa.businessPhone)}</p>}
       {wa.enabled && waLink && (
         <div className="mt-4 text-center">
           <a href={`https://wa.me/${waLink}`} target="_blank" rel="noreferrer" className="inline-block rounded-xl bg-wa px-6 py-3 font-bold text-white">
@@ -61,9 +62,11 @@ export function OrderView({ initial }: { initial: Order | null }) {
           </a>
         </div>
       )}
-      <div className="mt-6">
-        <OrderChats order={order} onChange={setOrder} sellerActions={false} />
-      </div>
+      {wa.enabled && (
+        <div className="mt-6">
+          <OrderChats order={order} onChange={setOrder} sellerActions={false} />
+        </div>
+      )}
       <div className="mt-10 text-center">
         <Link href={`/${locale}`} className="inline-block rounded-xl bg-sun-400 px-6 py-3 font-bold text-navy-950">{t.continueShopping}</Link>
       </div>
