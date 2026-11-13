@@ -43,6 +43,8 @@ type Store = {
   saveProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   removeProduct: (id: string) => void;
+  /** Saves the shop order of products: every product id, first shown first. */
+  reorderProducts: (ids: string[]) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -249,6 +251,15 @@ export function StoreProvider({
     updateProduct: (id, patch) =>
       save((c) => ({ ...c, products: c.products.map((p) => (p.id === id ? { ...p, ...patch } : p)) }), () => actions.updateProduct(id, patch)),
     removeProduct: (id) => save((c) => ({ ...c, products: c.products.filter((p) => p.id !== id) }), () => actions.removeProduct(id)),
+    reorderProducts: (ids) =>
+      save(
+        (c) => {
+          const byId = new Map(c.products.map((p) => [p.id, p]));
+          const placed = ids.flatMap((id, position) => (byId.has(id) ? [{ ...byId.get(id)!, position }] : []));
+          return { ...c, products: [...placed, ...c.products.filter((p) => !ids.includes(p.id))] };
+        },
+        () => actions.reorderProducts(ids),
+      ),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
