@@ -40,6 +40,7 @@ export default function AdminOrders() {
   };
   const cityName = useCityName();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [sort, setSort] = useState<"recent" | "old" | "name" | "id">("recent");
   const [open, setOpen] = useState<string | null>(null);
   const [chat, setChat] = useState<Order | null>(null);
 
@@ -48,7 +49,11 @@ export default function AdminOrders() {
   const todays = orders.filter((o) => new Date(o.createdAt).toDateString() === today);
   const toCollect = orders.filter((o) => o.status === "confirmed" || o.status === "shipping" || o.status === "new").reduce((a, o) => a + o.total, 0);
   const collected = orders.filter((o) => o.status === "delivered" && new Date(o.history.at(-1)!.at).toDateString() === today).reduce((a, o) => a + o.total, 0);
-  const list = orders.filter((o) => filter === "all" || o.status === filter);
+  const list = orders
+    .filter((o) => filter === "all" || o.status === filter)
+    .sort((a, b) =>
+      sort === "old" ? a.createdAt.localeCompare(b.createdAt) : sort === "name" ? a.customer.name.localeCompare(b.customer.name, "fr", { sensitivity: "base" }) : sort === "id" ? a.id.localeCompare(b.id) : b.createdAt.localeCompare(a.createdAt),
+    );
   const liveChat = chat && orders.find((o) => o.id === chat.id);
 
   return (
@@ -78,6 +83,17 @@ export default function AdminOrders() {
             {s === "all" ? "Toutes" : t.status[s]} <span className="opacity-60">{s === "all" ? orders.length : orders.filter((o) => o.status === s).length}</span>
           </button>
         ))}
+      </div>
+      <div className="mt-2 flex justify-end">
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Trier par
+          <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="rounded-lg border border-line bg-white px-2 py-1.5 text-sm font-semibold text-ink">
+            <option value="recent">Plus récentes</option>
+            <option value="old">Plus anciennes</option>
+            <option value="name">Client (A → Z)</option>
+            <option value="id">N° de commande</option>
+          </select>
+        </label>
       </div>
 
       <ul className="mt-3 space-y-3">
@@ -123,26 +139,35 @@ export default function AdminOrders() {
                     </ul>
                   </div>
                   <div className="flex flex-col gap-2">
+                    {!live && o.status === "new" && waUrl(o.customer.phone, "") && (
+                      <a
+                        href={waUrl(o.customer.phone, statusMessage(o, "new", config))!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl bg-wa px-4 py-3 text-center text-sm font-bold text-white"
+                      >
+                        1 · Envoyer la commande au client (articles, total, adresse)
+                      </a>
+                    )}
                     {action && (
                       <button onClick={() => move(o, action.to)} className="rounded-xl bg-navy-900 px-4 py-3 text-sm font-bold text-white">
-                        {action.label}
+                        {!live && o.status === "new" ? `2 · ${action.label}` : action.label}
                       </button>
                     )}
-                    {live ? (
-                      <button onClick={() => setChat(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">💬 Voir la conversation WhatsApp</button>
-                    ) : (
-                      waUrl(o.customer.phone, "") && (
-                        <a
-                          href={waUrl(o.customer.phone, statusMessage(o, o.status, config))!}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-xl bg-wa px-4 py-3 text-center text-sm font-bold text-white"
-                        >
-                          💬 Écrire au client sur WhatsApp
-                        </a>
-                      )
+                    {live && <button onClick={() => setChat(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">💬 Voir la conversation WhatsApp</button>}
+                    {!live && (
+                      <p className="text-xs text-muted">
+                        Chaque bouton ouvre WhatsApp avec le message pour le client déjà écrit, dans sa langue : appuyez sur Envoyer, une seule fois.
+                        {o.status !== "new" && waUrl(o.customer.phone, "") && (
+                          <>
+                            {" "}
+                            <a href={waUrl(o.customer.phone, statusMessage(o, o.status, config))!} target="_blank" rel="noreferrer" className="font-semibold underline">
+                              Renvoyer le dernier message
+                            </a>
+                          </>
+                        )}
+                      </p>
                     )}
-                    {!live && <p className="text-xs text-muted">Chaque bouton ouvre WhatsApp avec le message pour le client déjà écrit, dans sa langue : appuyez sur Envoyer.</p>}
                     {o.status !== "delivered" && o.status !== "cancelled" && (
                       <button onClick={() => confirm(`Annuler ${o.id} ?`) && move(o, "cancelled")} className="rounded-xl border border-danger/40 px-4 py-2.5 text-sm font-semibold text-danger">
                         Annuler la commande

@@ -4,9 +4,18 @@ import { formatDh, waId, type Order, type OrderStatus } from "./shop";
 // WhatsApp without the Meta API: wa.me links that open the shop phone's WhatsApp with the message for
 // the customer already written, in the language the order was placed in. The customer does nothing.
 
+// Emojis arrive as "�" when WhatsApp Desktop opens a prefilled link, so they are left out.
+const plain = (text: string) =>
+  text
+    .replace(/[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\uFE0F\u200D]/gu, "")
+    .replace(/•/g, "-")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
 export function waUrl(phone: string, text: string) {
   const id = waId(phone);
-  return id ? `https://wa.me/${id}?text=${encodeURIComponent(text)}` : null;
+  return id ? `https://wa.me/${id}?text=${encodeURIComponent(plain(text))}` : null;
 }
 
 type L = "fr" | "ar";
