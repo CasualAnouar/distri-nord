@@ -39,7 +39,7 @@ export function OrderChats({
   const { locale, t } = useLocale();
   const store = useStore();
   const { config } = store;
-  const setStatus = (id: string, to: Order["status"]) => store.setStatus(id, to).then((o) => o && onChange?.(o));
+  const setStatus = (id: string, to: Order["status"]) => store.setStatus(id, to).then((r) => r && onChange?.(r.order));
   const confirmAddress = (id: string, reply: AddressReply) => store.confirmAddress(id, reply).then((o) => o && onChange?.(o));
   const cities = config.cities;
   const [view, setView] = useState<ChatView>(initial);

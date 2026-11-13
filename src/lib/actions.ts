@@ -19,6 +19,7 @@ import {
   patchProduct,
   saveAddressReply,
   updateOrderStatus,
+  markLinkSent,
   writeCategory,
   writeCity,
   writeProduct,
@@ -148,12 +149,19 @@ async function requireAdmin() {
 
 const statuses: OrderStatus[] = ["new", "confirmed", "shipping", "delivered", "cancelled"];
 
-export async function setOrderStatus(orderId: string, status: OrderStatus): Promise<Order | null> {
+/** Moves an order one step; `changed` is false when the step was refused (skipped or already done). */
+export async function setOrderStatus(orderId: string, status: OrderStatus, linkSent = false): Promise<{ order: Order; changed: boolean } | null> {
   await requireAdmin();
   if (!statuses.includes(status)) return null;
-  const order = await updateOrderStatus(str(orderId, 24), status);
-  if (order) await afterOrderChange(order);
-  return order;
+  const r = await updateOrderStatus(str(orderId, 24), status, linkSent === true);
+  if (r?.changed) await afterOrderChange(r.order);
+  return r;
+}
+
+export async function markOrderLinkSent(orderId: string, status: OrderStatus): Promise<Order | null> {
+  await requireAdmin();
+  if (!statuses.includes(status)) return null;
+  return markLinkSent(str(orderId, 24), status);
 }
 
 export async function fetchDashboard(): Promise<{ config: Config; orders: Order[] }> {

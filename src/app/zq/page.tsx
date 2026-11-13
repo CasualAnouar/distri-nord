@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCityName, useStore } from "@/lib/store";
-import { formatDh, mapsUrl, type Order, type OrderStatus } from "@/lib/shop";
+import { formatDh, mapsUrl, sortedLines, type Order, type OrderStatus } from "@/lib/shop";
 import { dicts } from "@/i18n/dict";
 import { OrderChats } from "@/components/OrderChats";
 import { statusMessage, waUrl } from "@/lib/walinks";
@@ -26,17 +26,53 @@ const ago = (iso: string) => {
 };
 
 export default function AdminOrders() {
-  const { ready, orders, setStatus, config } = useStore();
+  const { ready, orders, setStatus, markLinkSent, config } = useStore();
   const live = config.settings.whatsapp.enabled;
-  // Without the WhatsApp API, each status change opens the seller's WhatsApp with the message for the
-  // customer already written (in the order's language). window.open must run inside the click.
-  const notify = (o: Order, to: OrderStatus) => {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  // Link mode (no WhatsApp API): each step opens the shop phone's WhatsApp with the customer's message
+  // already written. Steps go in order, and a step's message opens only once the server accepted the
+  // step, so nothing is skipped or sent twice. The tab is opened inside the click (popup blockers) and
+  // pointed at WhatsApp afterwards.
+  const move = async (o: Order, to: OrderStatus) => {
+    if (busy) return;
+    if (!live && o.status === "new" && to === "confirmed" && !o.linkSent?.includes("new")) {
+      if (!confirm(`Le client n'a pas encore reçu le message de la commande (étape 1).\n\nConfirmer ${o.id} sans lui envoyer ce message ?`)) return;
+    }
     const url = live ? null : waUrl(o.customer.phone, statusMessage(o, to, config));
-    if (url) window.open(url, "_blank", "noopener");
+    const tab = url ? window.open("", "_blank") : null;
+    setBusy(o.id);
+    try {
+      const r = await setStatus(o.id, to, Boolean(url));
+      if (r?.changed && url) {
+        if (tab) {
+          tab.opener = null;
+          tab.location.href = url;
+        } else window.location.href = url;
+      } else {
+        tab?.close();
+        if (r && !r.changed) alert(`${o.id} est déjà « ${t.status[r.order.status]} » : rien n'a été envoyé.`);
+      }
+    } catch {
+      tab?.close();
+      alert("Erreur réseau : rien n'a été envoyé. Réessayez.");
+    } finally {
+      setBusy(null);
+    }
   };
-  const move = (o: Order, to: OrderStatus) => {
-    notify(o, to);
-    setStatus(o.id, to);
+
+  // Step 1 of link mode: the order details and the address question, sent once.
+  const sendOrder = (o: Order) => {
+    const url = waUrl(o.customer.phone, statusMessage(o, "new", config));
+    if (!url) return;
+    if (o.linkSent?.includes("new") && !confirm(`Le message de la commande ${o.id} a déjà été envoyé. L'envoyer une deuxième fois ?`)) return;
+    window.open(url, "_blank", "noopener");
+    markLinkSent(o.id, "new");
+  };
+
+  const resend = (o: Order) => {
+    const url = waUrl(o.customer.phone, statusMessage(o, o.status, config));
+    if (url && confirm(`Ce message (« ${t.status[o.status]} ») a déjà été envoyé à ${o.customer.name}. Le renvoyer ?`)) window.open(url, "_blank", "noopener");
   };
   const cityName = useCityName();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
@@ -129,7 +165,7 @@ export default function AdminOrders() {
                     {o.customer.landmark && <p className="mt-1 text-muted">Repère : {o.customer.landmark}</p>}
                     {o.customer.note && <p className="mt-1 text-muted">📝 {o.customer.note}</p>}
                     <ul className="mt-3 space-y-1">
-                      {o.lines.map((l) => (
+                      {sortedLines(o).map((l) => (
                         <li key={`${l.productId}-${l.mode}`} className="flex justify-between gap-2">
                           <span>{l.qty} × {l.name} {l.mode === "lot" ? `(lot ${l.unitsPerLine})` : ""}</span>
                           <span className="font-semibold">{formatDh(l.price)}</span>
@@ -139,31 +175,34 @@ export default function AdminOrders() {
                     </ul>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {!live && o.status === "new" && waUrl(o.customer.phone, "") && (
-                      <a
-                        href={waUrl(o.customer.phone, statusMessage(o, "new", config))!}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-xl bg-wa px-4 py-3 text-center text-sm font-bold text-white"
-                      >
-                        1 · Envoyer la commande au client (articles, total, adresse)
-                      </a>
-                    )}
+                    {!live && o.status === "new" && waUrl(o.customer.phone, "") &&
+                      (o.linkSent?.includes("new") ? (
+                        <p className="rounded-xl bg-ok/10 px-4 py-3 text-sm font-semibold text-ok">
+                          ✓ Étape 1 faite : commande envoyée au client.{" "}
+                          <button onClick={() => sendOrder(o)} className="font-normal underline">Renvoyer</button>
+                        </p>
+                      ) : (
+                        <button onClick={() => sendOrder(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">
+                          1 · Envoyer la commande au client (détails, total, adresse)
+                        </button>
+                      ))}
                     {action && (
-                      <button onClick={() => move(o, action.to)} className="rounded-xl bg-navy-900 px-4 py-3 text-sm font-bold text-white">
-                        {!live && o.status === "new" ? `2 · ${action.label}` : action.label}
+                      <button
+                        onClick={() => move(o, action.to)}
+                        disabled={busy === o.id}
+                        className={`rounded-xl px-4 py-3 text-sm font-bold text-white disabled:opacity-50 ${!live && o.status === "new" && !o.linkSent?.includes("new") ? "bg-navy-900/40" : "bg-navy-900"}`}
+                      >
+                        {busy === o.id ? "…" : !live && o.status === "new" ? `2 · ${action.label}` : action.label}
                       </button>
                     )}
                     {live && <button onClick={() => setChat(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">💬 Voir la conversation WhatsApp</button>}
                     {!live && (
                       <p className="text-xs text-muted">
-                        Chaque bouton ouvre WhatsApp avec le message pour le client déjà écrit, dans sa langue : appuyez sur Envoyer, une seule fois.
-                        {o.status !== "new" && waUrl(o.customer.phone, "") && (
+                        Chaque étape ouvre WhatsApp avec le message pour le client déjà écrit, dans sa langue : appuyez sur Envoyer, une seule fois.
+                        {o.status !== "new" && o.linkSent?.includes(o.status) && (
                           <>
                             {" "}
-                            <a href={waUrl(o.customer.phone, statusMessage(o, o.status, config))!} target="_blank" rel="noreferrer" className="font-semibold underline">
-                              Renvoyer le dernier message
-                            </a>
+                            <button onClick={() => resend(o)} className="font-semibold underline">Renvoyer le dernier message</button>
                           </>
                         )}
                       </p>
