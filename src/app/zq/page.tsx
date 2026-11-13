@@ -26,7 +26,7 @@ const ago = (iso: string) => {
 };
 
 export default function AdminOrders() {
-  const { ready, orders, setStatus, markLinkSent, config } = useStore();
+  const { ready, orders, setStatus, markLinkSent, resetOrder, config } = useStore();
   const live = config.settings.whatsapp.enabled;
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -34,46 +34,55 @@ export default function AdminOrders() {
   // already written. Steps go in order, and a step's message opens only once the server accepted the
   // step, so nothing is skipped or sent twice. The tab is opened inside the click (popup blockers) and
   // pointed at WhatsApp afterwards.
+  // Meta mode: the server sends the messages, the button only moves the order.
   const move = async (o: Order, to: OrderStatus) => {
     if (busy) return;
-    if (!live && o.status === "new" && to === "confirmed" && !o.linkSent?.includes("new")) {
-      if (!confirm(`Le client n'a pas encore reçu le message de la commande (étape 1).\n\nConfirmer ${o.id} sans lui envoyer ce message ?`)) return;
-    }
-    const url = live ? null : waUrl(o.customer.phone, statusMessage(o, to, config));
-    const tab = url ? window.open("", "_blank") : null;
     setBusy(o.id);
     try {
-      const r = await setStatus(o.id, to, Boolean(url));
-      if (r?.changed && url) {
-        if (tab) {
-          tab.opener = null;
-          tab.location.href = url;
-        } else window.location.href = url;
-      } else {
-        tab?.close();
-        if (r && !r.changed) alert(`${o.id} est déjà « ${t.status[r.order.status]} » : rien n'a été envoyé.`);
-      }
+      const r = await setStatus(o.id, to);
+      if (r && !r.changed) alert(`${o.id} est déjà « ${t.status[r.order.status]} ».`);
     } catch {
-      tab?.close();
-      alert("Erreur réseau : rien n'a été envoyé. Réessayez.");
+      alert("Erreur réseau : réessayez.");
     } finally {
       setBusy(null);
     }
   };
 
-  // Step 1 of link mode: the order details and the address question, sent once.
-  const sendOrder = (o: Order) => {
-    const url = waUrl(o.customer.phone, statusMessage(o, "new", config));
-    if (!url) return;
-    if (o.linkSent?.includes("new") && !confirm(`Le message de la commande ${o.id} a déjà été envoyé. L'envoyer une deuxième fois ?`)) return;
-    window.open(url, "_blank", "noopener");
+  // Link mode: every step is a real link to WhatsApp. Phones only open the WhatsApp app from a link
+  // the finger actually taps (opening it from code after a save leaves an empty tab and sends
+  // nothing), so the tap opens WhatsApp and the step is saved alongside. Cancelling a confirm box
+  // stops the link.
+  const onStep = (e: React.MouseEvent, o: Order, to: OrderStatus) => {
+    if (busy) return e.preventDefault();
+    if (o.status === "new" && to === "confirmed" && !o.linkSent?.includes("new")) {
+      if (!confirm(`Le client n'a pas encore reçu le message de la commande (étape 1).\n\nConfirmer ${o.id} et lui envoyer seulement la confirmation ?`)) return e.preventDefault();
+    }
+    if (to === "cancelled" && !confirm(`Annuler ${o.id} et prévenir le client ?`)) return e.preventDefault();
+    setBusy(o.id);
+    setStatus(o.id, to, true)
+      .then((r) => {
+        if (r && !r.changed) alert(`${o.id} était déjà « ${t.status[r.order.status]} » : n'envoyez pas ce message, le client l'a déjà reçu.`);
+      })
+      .catch(() => alert("Erreur réseau : l'étape n'a pas été enregistrée. Envoyez le message puis réessayez."))
+      .finally(() => setBusy(null));
+  };
+
+  // Step 1 of link mode: the order details and the address question.
+  const onSendOrder = (e: React.MouseEvent, o: Order) => {
+    if (o.linkSent?.includes("new") && !confirm(`Le message de la commande ${o.id} a déjà été envoyé. L'envoyer une deuxième fois ?`)) return e.preventDefault();
     markLinkSent(o.id, "new");
   };
 
-  const resend = (o: Order) => {
-    const url = waUrl(o.customer.phone, statusMessage(o, o.status, config));
-    if (url && confirm(`Ce message (« ${t.status[o.status]} ») a déjà été envoyé à ${o.customer.name}. Le renvoyer ?`)) window.open(url, "_blank", "noopener");
+  const onResend = (e: React.MouseEvent, o: Order) => {
+    if (!confirm(`Ce message (« ${t.status[o.status]} ») a déjà été envoyé à ${o.customer.name}. Le renvoyer ?`)) e.preventDefault();
   };
+
+  const restart = async (o: Order) => {
+    if (!confirm(`Remettre ${o.id} à l'étape 1 ?\n\nLa commande redevient « ${t.status.new} » et tous ses messages pourront être envoyés à nouveau.`)) return;
+    const r = await resetOrder(o.id);
+    if (!r) alert("Erreur : la commande n'a pas été remise à l'étape 1.");
+  };
+
   const cityName = useCityName();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [sort, setSort] = useState<"recent" | "old" | "name" | "id">("recent");
@@ -179,37 +188,71 @@ export default function AdminOrders() {
                       (o.linkSent?.includes("new") ? (
                         <p className="rounded-xl bg-ok/10 px-4 py-3 text-sm font-semibold text-ok">
                           ✓ Étape 1 faite : commande envoyée au client.{" "}
-                          <button onClick={() => sendOrder(o)} className="font-normal underline">Renvoyer</button>
+                          <a href={waUrl(o.customer.phone, statusMessage(o, "new", config))!} target="_blank" rel="noopener noreferrer" onClick={(e) => onSendOrder(e, o)} className="font-normal underline">
+                            Renvoyer
+                          </a>
                         </p>
                       ) : (
-                        <button onClick={() => sendOrder(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">
+                        <a
+                          href={waUrl(o.customer.phone, statusMessage(o, "new", config))!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => onSendOrder(e, o)}
+                          className="rounded-xl bg-wa px-4 py-3 text-center text-sm font-bold text-white"
+                        >
                           1 · Envoyer la commande au client (détails, total, adresse)
-                        </button>
+                        </a>
                       ))}
-                    {action && (
-                      <button
-                        onClick={() => move(o, action.to)}
-                        disabled={busy === o.id}
-                        className={`rounded-xl px-4 py-3 text-sm font-bold text-white disabled:opacity-50 ${!live && o.status === "new" && !o.linkSent?.includes("new") ? "bg-navy-900/40" : "bg-navy-900"}`}
-                      >
-                        {busy === o.id ? "…" : !live && o.status === "new" ? `2 · ${action.label}` : action.label}
-                      </button>
-                    )}
+                    {action &&
+                      (live || !waUrl(o.customer.phone, "") ? (
+                        <button onClick={() => move(o, action.to)} disabled={busy === o.id} className="rounded-xl bg-navy-900 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">
+                          {busy === o.id ? "…" : action.label}
+                        </button>
+                      ) : (
+                        <a
+                          href={waUrl(o.customer.phone, statusMessage(o, action.to, config))!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => onStep(e, o, action.to)}
+                          aria-disabled={busy === o.id}
+                          className={`rounded-xl px-4 py-3 text-center text-sm font-bold text-white ${busy === o.id ? "pointer-events-none opacity-50" : ""} ${o.status === "new" && !o.linkSent?.includes("new") ? "bg-navy-900/40" : "bg-navy-900"}`}
+                        >
+                          {busy === o.id ? "…" : o.status === "new" ? `2 · ${action.label}` : action.label}
+                        </a>
+                      ))}
                     {live && <button onClick={() => setChat(o)} className="rounded-xl bg-wa px-4 py-3 text-sm font-bold text-white">💬 Voir la conversation WhatsApp</button>}
                     {!live && (
                       <p className="text-xs text-muted">
                         Chaque étape ouvre WhatsApp avec le message pour le client déjà écrit, dans sa langue : appuyez sur Envoyer, une seule fois.
-                        {o.status !== "new" && o.linkSent?.includes(o.status) && (
+                        {o.status !== "new" && o.linkSent?.includes(o.status) && waUrl(o.customer.phone, "") && (
                           <>
                             {" "}
-                            <button onClick={() => resend(o)} className="font-semibold underline">Renvoyer le dernier message</button>
+                            <a href={waUrl(o.customer.phone, statusMessage(o, o.status, config))!} target="_blank" rel="noopener noreferrer" onClick={(e) => onResend(e, o)} className="font-semibold underline">
+                              Renvoyer le dernier message
+                            </a>
                           </>
                         )}
                       </p>
                     )}
-                    {o.status !== "delivered" && o.status !== "cancelled" && (
-                      <button onClick={() => confirm(`Annuler ${o.id} ?`) && move(o, "cancelled")} className="rounded-xl border border-danger/40 px-4 py-2.5 text-sm font-semibold text-danger">
-                        Annuler la commande
+                    {o.status !== "delivered" && o.status !== "cancelled" &&
+                      (live || !waUrl(o.customer.phone, "") ? (
+                        <button onClick={() => confirm(`Annuler ${o.id} ?`) && move(o, "cancelled")} className="rounded-xl border border-danger/40 px-4 py-2.5 text-sm font-semibold text-danger">
+                          Annuler la commande
+                        </button>
+                      ) : (
+                        <a
+                          href={waUrl(o.customer.phone, statusMessage(o, "cancelled", config))!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => onStep(e, o, "cancelled")}
+                          className="rounded-xl border border-danger/40 px-4 py-2.5 text-center text-sm font-semibold text-danger"
+                        >
+                          Annuler la commande
+                        </a>
+                      ))}
+                    {(o.status !== "new" || (o.linkSent?.length ?? 0) > 0) && (
+                      <button onClick={() => restart(o)} className="self-start text-xs font-semibold text-muted underline">
+                        ↺ Remettre à l&apos;étape 1
                       </button>
                     )}
                     <ol className="mt-2 space-y-1 text-xs text-muted">

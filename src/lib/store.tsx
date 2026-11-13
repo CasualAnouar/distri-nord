@@ -32,6 +32,7 @@ type Store = {
   placeOrder: (customer: Customer, locale: "fr" | "ar") => Promise<PlaceOrderResult>;
   setStatus: (orderId: string, status: OrderStatus, linkSent?: boolean) => Promise<{ order: Order; changed: boolean } | null>;
   markLinkSent: (orderId: string, status: OrderStatus) => Promise<Order | null>;
+  resetOrder: (orderId: string) => Promise<Order | null>;
   confirmAddress: (orderId: string, reply: AddressReply) => Promise<Order | null>;
   totals: (cityId?: string) => ReturnType<typeof cartTotals>;
   saveSettings: (patch: Partial<Settings>) => void;
@@ -188,6 +189,12 @@ export function StoreProvider({
     return r;
   };
 
+  const resetOrder = async (orderId: string) => {
+    const order = await actions.resetOrder(orderId);
+    if (order) setOrders((list) => list.map((o) => (o.id === order.id ? order : o)));
+    return order;
+  };
+
   const markLinkSent = async (orderId: string, status: OrderStatus) => {
     const order = await actions.markOrderLinkSent(orderId, status);
     if (order) setOrders((list) => list.map((o) => (o.id === order.id ? order : o)));
@@ -230,6 +237,7 @@ export function StoreProvider({
     placeOrder,
     setStatus,
     markLinkSent,
+    resetOrder,
     confirmAddress,
     totals,
     saveSettings: (patch) => save((c) => ({ ...c, settings: { ...c.settings, ...patch } }), () => actions.saveSettings(patch)),
