@@ -153,6 +153,20 @@ export async function updateOrderStatus(id: string, status: OrderStatus, linkSen
   });
 }
 
+/** Puts an order back to its first step: status "new" and no WhatsApp step recorded. */
+export async function resetOrderToStart(id: string): Promise<Order | null> {
+  const db = getDb();
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, C.orders, id);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return null;
+    const order = snap.data() as Order;
+    const next: Order = { ...order, status: "new", linkSent: [], history: [...order.history, { status: "new", at: new Date().toISOString() }] };
+    tx.update(ref, { status: next.status, linkSent: [], history: next.history });
+    return next;
+  });
+}
+
 /** Records that the dashboard opened the WhatsApp message for this status (link mode). */
 export async function markLinkSent(id: string, status: OrderStatus): Promise<Order | null> {
   const db = getDb();

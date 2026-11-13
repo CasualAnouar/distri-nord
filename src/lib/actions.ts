@@ -20,6 +20,7 @@ import {
   saveAddressReply,
   updateOrderStatus,
   markLinkSent,
+  resetOrderToStart,
   writeCategory,
   writeCity,
   writeProduct,
@@ -156,6 +157,11 @@ export async function setOrderStatus(orderId: string, status: OrderStatus, linkS
   const r = await updateOrderStatus(str(orderId, 24), status, linkSent === true);
   if (r?.changed) await afterOrderChange(r.order);
   return r;
+}
+
+export async function resetOrder(orderId: string): Promise<Order | null> {
+  await requireAdmin();
+  return resetOrderToStart(str(orderId, 24));
 }
 
 export async function markOrderLinkSent(orderId: string, status: OrderStatus): Promise<Order | null> {
