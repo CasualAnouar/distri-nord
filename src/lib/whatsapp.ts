@@ -22,7 +22,9 @@ export function conversation(o: Order, view: ChatView, locale: "fr" | "ar", conf
   // The city is optional at checkout.
   const place = (parts: string[]) => parts.filter((x) => x.trim()).join(", ");
   const first = o.customer.name.split(" ")[0];
-  const items = o.lines.map((l) => `• ${l.qty} × ${l.name}${l.mode === "lot" ? (ar ? ` (علبة ${l.unitsPerLine})` : ` (lot ${l.unitsPerLine})`) : ""}`).join("\n");
+  const suffix = (l: Order["lines"][number]) =>
+    l.mode === "lot" ? (ar ? ` (علبة ${l.unitsPerLine})` : ` (lot ${l.unitsPerLine})`) : l.mode === "box" ? (ar ? " (بوكس)" : " (box)") : "";
+  const items = o.lines.map((l) => `• ${l.qty} × ${l.name}${suffix(l)}`).join("\n");
   // The address can come from the checkout form, or later from WhatsApp as a pin or a typed message.
   const hasAddress = Boolean(o.customer.address.trim());
   const addr = hasAddress

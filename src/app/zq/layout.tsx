@@ -7,7 +7,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { adminAuthorized } from "@/lib/admin-auth";
-import { getFreshConfig, listOrders } from "@/lib/server/data";
+import { READ_ONLY, getFreshConfig, listOrders } from "@/lib/server/data";
 
 export const metadata: Metadata = { title: "Gestion", robots: { index: false, follow: false } };
 
@@ -24,6 +24,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <LocaleProvider locale="fr">
           <StoreProvider initialConfig={config} initialOrders={orders}>
             <AdminNav />
+            {READ_ONLY && (
+              <p className="bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
+                Aperçu en lecture seule : les modifications et les commandes ne sont pas enregistrées.
+              </p>
+            )}
             <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
           </StoreProvider>
         </LocaleProvider>

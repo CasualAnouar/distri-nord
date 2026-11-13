@@ -19,13 +19,21 @@ import {
 import { firebaseConfigured, getDb } from "@/lib/firebase";
 import { defaultConfig, defaultSettings, type City, type Config, type Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
+import { defaultBoxes, type Box } from "@/data/boxes";
+import { READ_ONLY } from "./read-only";
 import { NEXT_STATUS, type AddressReply, type Order, type OrderStatus } from "@/lib/shop";
 
 // Every Firestore read and write of the store goes through this file, on the server only.
 
 export const STORE_TAG = "store";
 
-const C = { settings: "settings", cities: "cities", categories: "categories", products: "products", orders: "orders" } as const;
+const C = { settings: "settings", cities: "cities", categories: "categories", products: "products", boxes: "boxes", orders: "orders" } as const;
+
+export { READ_ONLY };
+
+function assertWritable() {
+  if (READ_ONLY) throw new Error("Read-only preview: changes are not saved");
+}
 
 /** Address of a product photo uploaded from the dashboard (stored in Firestore as a data URL). */
 const IMAGE_ROUTE = "/api/images/";
@@ -52,11 +60,13 @@ export function isServedImage(image: string | undefined) {
 async function readConfig(): Promise<Config> {
   if (!firebaseConfigured) return defaultConfig;
   const db = getDb();
-  const [settingsSnap, citiesSnap, catsSnap, prodsSnap] = await Promise.all([
+  const [settingsSnap, citiesSnap, catsSnap, prodsSnap, boxesSnap] = await Promise.all([
     getDoc(doc(db, C.settings, "global")),
     getDocs(collection(db, C.cities)),
     getDocs(collection(db, C.categories)),
     getDocs(collection(db, C.products)),
+    // A shop that never saved a box starts from the default ones.
+    getDocs(collection(db, C.boxes)).catch(() => null),
   ]);
   const stored = (settingsSnap.data() as Partial<Settings> | undefined) ?? {};
   return {
@@ -64,6 +74,7 @@ async function readConfig(): Promise<Config> {
     cities: citiesSnap.docs.map((d) => d.data() as City),
     categories: catsSnap.docs.map((d) => d.data() as Category),
     products: sortProducts(prodsSnap.docs.map((d) => withImageUrl(d.data() as Product))),
+    boxes: boxesSnap && !boxesSnap.empty ? boxesSnap.docs.map((d) => d.data() as Box) : defaultBoxes,
   };
 }
 
@@ -87,7 +98,7 @@ export const getFreshConfig = readConfig;
 
 /** What a shopper's browser receives: no hidden products, nothing else that is not for sale. */
 export function publicConfig(config: Config): Config {
-  return { ...config, products: config.products.filter((p) => !p.hidden) };
+  return { ...config, products: config.products.filter((p) => !p.hidden), boxes: config.boxes.filter((b) => !b.hidden) };
 }
 
 /** The uploaded photo of one product, as stored. */
@@ -124,6 +135,7 @@ function newOrderId() {
  * (without id), or throws to refuse it.
  */
 export async function createOrder(productIds: string[], build: (products: Map<string, Product>) => Omit<Order, "id">): Promise<Order> {
+  assertWritable();
   const db = getDb();
   return runTransaction(db, async (tx) => {
     const ids = [...new Set(productIds)];
@@ -136,7 +148,11 @@ export async function createOrder(productIds: string[], build: (products: Map<st
     const order: Order = { id, ...built };
 
     const used = new Map<string, number>();
-    for (const l of order.lines) used.set(l.productId, (used.get(l.productId) ?? 0) + l.unitsPerLine * l.qty);
+    const take = (pid: string, n: number) => used.set(pid, (used.get(pid) ?? 0) + n);
+    for (const l of order.lines) {
+      if (l.mode === "box") for (const it of l.items ?? []) take(it.productId, it.qty * l.qty);
+      else take(l.productId, l.unitsPerLine * l.qty);
+    }
     for (const [pid, units] of used) {
       const p = products.get(pid);
       if (p) tx.update(doc(db, C.products, pid), { stock: Math.max(0, p.stock - units) });
@@ -148,6 +164,7 @@ export async function createOrder(productIds: string[], build: (products: Map<st
 
 /** Moves an order one step. A change that skips or repeats a step is refused (changed: false). */
 export async function updateOrderStatus(id: string, status: OrderStatus, linkSent = false): Promise<{ order: Order; changed: boolean } | null> {
+  assertWritable();
   const db = getDb();
   return runTransaction(db, async (tx) => {
     const ref = doc(db, C.orders, id);
@@ -164,6 +181,7 @@ export async function updateOrderStatus(id: string, status: OrderStatus, linkSen
 
 /** Puts an order back to its first step: status "new" and no WhatsApp step recorded. */
 export async function resetOrderToStart(id: string): Promise<Order | null> {
+  assertWritable();
   const db = getDb();
   return runTransaction(db, async (tx) => {
     const ref = doc(db, C.orders, id);
@@ -178,6 +196,7 @@ export async function resetOrderToStart(id: string): Promise<Order | null> {
 
 /** Records that the dashboard opened the WhatsApp message for this status (link mode). */
 export async function markLinkSent(id: string, status: OrderStatus): Promise<Order | null> {
+  assertWritable();
   const db = getDb();
   return runTransaction(db, async (tx) => {
     const ref = doc(db, C.orders, id);
@@ -193,6 +212,7 @@ export async function markLinkSent(id: string, status: OrderStatus): Promise<Ord
 
 /** The buyer's answer to the address question. Only a new order can still be confirmed. */
 export async function saveAddressReply(id: string, reply: AddressReply): Promise<Order | null> {
+  assertWritable();
   const db = getDb();
   return runTransaction(db, async (tx) => {
     const ref = doc(db, C.orders, id);
@@ -219,33 +239,40 @@ function stripUndefined<T extends object>(o: T): DocumentData {
 }
 
 export async function writeSettings(patch: Partial<Settings>) {
+  assertWritable();
   await setDoc(doc(getDb(), C.settings, "global"), stripUndefined(patch), { merge: true });
 }
 
 export async function writeCity(city: City) {
+  assertWritable();
   await setDoc(doc(getDb(), C.cities, city.id), stripUndefined(city));
 }
 
 export async function deleteCity(id: string) {
+  assertWritable();
   await deleteDoc(doc(getDb(), C.cities, id));
 }
 
 export async function writeCategory(cat: Category) {
+  assertWritable();
   await setDoc(doc(getDb(), C.categories, cat.id), stripUndefined(cat));
 }
 
 export async function deleteCategory(id: string) {
+  assertWritable();
   await deleteDoc(doc(getDb(), C.categories, id));
 }
 
 /** Replaces a product. A photo that is still the served URL keeps the stored upload. */
 export async function writeProduct(p: Product) {
+  assertWritable();
   const ref = doc(getDb(), C.products, p.id);
   const image = isServedImage(p.image) ? ((await getDoc(ref)).data() as Product | undefined)?.image : p.image;
   await setDoc(ref, stripUndefined({ ...p, image }));
 }
 
 export async function patchProduct(id: string, patch: Partial<Product>) {
+  assertWritable();
   const entries = Object.entries(patch).filter(([k, v]) => !(k === "image" && isServedImage(v as string | undefined)));
   if (!entries.length) return;
   await updateDoc(doc(getDb(), C.products, id), Object.fromEntries(entries.map(([k, v]) => [k, v === undefined ? deleteField() : v])));
@@ -253,6 +280,7 @@ export async function patchProduct(id: string, patch: Partial<Product>) {
 
 /** Saves the shop order: each listed product gets its place (0, 1, 2…). Unknown ids are skipped. */
 export async function writeProductOrder(ids: string[]) {
+  assertWritable();
   const db = getDb();
   const existing = new Set((await getDocs(collection(db, C.products))).docs.map((d) => d.id));
   const known = ids.filter((id) => existing.has(id));
@@ -264,5 +292,27 @@ export async function writeProductOrder(ids: string[]) {
 }
 
 export async function deleteProduct(id: string) {
+  assertWritable();
   await deleteDoc(doc(getDb(), C.products, id));
+}
+
+/** Boxes: the first save writes every default box too, so the shop keeps showing them all. */
+export async function writeBox(box: Box) {
+  assertWritable();
+  const db = getDb();
+  const existing = await getDocs(collection(db, C.boxes));
+  const batch = writeBatch(db);
+  if (existing.empty) for (const b of defaultBoxes) if (b.id !== box.id) batch.set(doc(db, C.boxes, b.id), stripUndefined(b));
+  batch.set(doc(db, C.boxes, box.id), stripUndefined(box));
+  await batch.commit();
+}
+
+export async function deleteBox(id: string) {
+  assertWritable();
+  const db = getDb();
+  const existing = await getDocs(collection(db, C.boxes));
+  const batch = writeBatch(db);
+  if (existing.empty) for (const b of defaultBoxes) if (b.id !== id) batch.set(doc(db, C.boxes, b.id), stripUndefined(b));
+  batch.delete(doc(db, C.boxes, id));
+  await batch.commit();
 }

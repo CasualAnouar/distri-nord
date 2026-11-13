@@ -19,7 +19,7 @@ const lang = (o: Order): L => (o.locale === "ar" ? "ar" : "fr");
 // One line per product, A to Z: quantity, name, lot size and line price; then delivery and total.
 function details(o: Order, l: L) {
   const lines = sortedLines(o).map(
-    (x) => `• ${x.qty} × ${x.name}${x.mode === "lot" ? (l === "ar" ? ` (علبة ${x.unitsPerLine})` : ` (lot ${x.unitsPerLine})`) : ""} : ${formatDh(x.price, l)}`,
+    (x) => `• ${x.qty} × ${x.name}${x.mode === "lot" ? (l === "ar" ? ` (علبة ${x.unitsPerLine})` : ` (lot ${x.unitsPerLine})`) : x.mode === "box" ? (l === "ar" ? " (بوكس)" : " (box)") : ""} : ${formatDh(x.price, l)}`,
   );
   const delivery = l === "ar" ? `التوصيل: ${o.delivery ? formatDh(o.delivery, l) : "مجاني"}` : `Livraison : ${o.delivery ? formatDh(o.delivery, l) : "gratuite"}`;
   const total = l === "ar" ? `المبلغ عند الاستلام: *${formatDh(o.total, l)}*` : `À payer à la livraison : *${formatDh(o.total, l)}*`;

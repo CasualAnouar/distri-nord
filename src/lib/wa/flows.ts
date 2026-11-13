@@ -1,5 +1,6 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { adminConfigured, adminDb } from "@/lib/firebase-admin";
+import { READ_ONLY } from "@/lib/server/read-only";
 import { defaultSettings, type City, type Settings } from "@/lib/config";
 import { formatDh, mapsUrl, normalizePhone, waId, type AddressReply, type Order, type OrderStatus, type WaLogEntry } from "@/lib/shop";
 import { WaError, cloudConfigured, markRead, sendButtons, sendLocation, sendLocationRequest, sendTemplate, sendText } from "./cloud";
@@ -64,7 +65,7 @@ async function deliver(db: Firestore, orderId: string, party: Party, text: strin
 // ---- Texts ----
 
 const items = (o: Order, lang: TemplateLang) =>
-  o.lines.map((l) => `${l.qty} × ${l.name}${l.mode === "lot" ? (lang === "ar" ? ` (علبة ${l.unitsPerLine})` : ` (lot ${l.unitsPerLine})`) : ""}`).join(", ");
+  o.lines.map((l) => `${l.qty} × ${l.name}${l.mode === "lot" ? (lang === "ar" ? ` (علبة ${l.unitsPerLine})` : ` (lot ${l.unitsPerLine})`) : l.mode === "box" ? (lang === "ar" ? " (بوكس)" : " (box)") : ""}`).join(", ");
 
 async function addressText(db: Firestore, o: Order, lang: TemplateLang) {
   const city = await cityName(db, o.customer.city, lang);
@@ -94,6 +95,7 @@ const say = {
 // ---- Outgoing: one notification set per status, sent once ----
 
 export async function syncOrderToWhatsApp(orderId: string): Promise<{ sent: string[]; skipped?: string }> {
+  if (READ_ONLY) return { sent: [], skipped: "preview" };
   if (!whatsappReady()) return { sent: [], skipped: "not configured" };
   const db = adminDb();
   const settings = await loadSettings(db);
@@ -221,7 +223,7 @@ type InStatus = { id: string; status: string; errors?: { code?: number; title?: 
 type WebhookBody = { entry?: { changes?: { value?: { messages?: InMessage[]; statuses?: InStatus[] } }[] }[] };
 
 export async function handleWebhook(body: WebhookBody, siteUrl: string) {
-  if (!whatsappReady()) return;
+  if (READ_ONLY || !whatsappReady()) return;
   const db = adminDb();
   const settings = await loadSettings(db);
   for (const entry of body.entry ?? []) {

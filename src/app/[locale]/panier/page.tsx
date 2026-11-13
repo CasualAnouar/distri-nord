@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
-import { formatDh, linePrice, normalizePhone, type Customer } from "@/lib/shop";
+import { formatDh, priceOf, normalizePhone, type Customer } from "@/lib/shop";
 import { ProductTile } from "@/components/ProductTile";
 
 const empty: Customer = { name: "", phone: "", city: "", district: "", address: "", landmark: "", note: "" };
@@ -13,7 +13,7 @@ const empty: Customer = { name: "", phone: "", city: "", district: "", address: 
 export default function CartPage() {
   const { locale, t } = useLocale();
   const router = useRouter();
-  const { ready, cart, getProduct, setQty, placeOrder, totals: cartTotalsFor, cities, settings } = useStore();
+  const { ready, cart, getProduct, getBox, lookup, setQty, placeOrder, totals: cartTotalsFor, cities } = useStore();
   const [form, setForm] = useState<Customer>(empty);
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
@@ -21,7 +21,7 @@ export default function CartPage() {
   const [error, setError] = useState("");
 
   const totals = cartTotalsFor(form.city);
-  const min = formatDh(settings.minCart, locale);
+  const min = formatDh(totals.min, locale);
   const phone = normalizePhone(form.phone);
   const errors = {
     name: !form.name.trim(),
@@ -80,7 +80,7 @@ export default function CartPage() {
     );
   }
 
-  const pct = Math.min(100, (totals.subtotal / settings.minCart) * 100);
+  const pct = Math.min(100, (totals.subtotal / totals.min) * 100);
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_420px]">
@@ -91,16 +91,20 @@ export default function CartPage() {
         </div>
         <ul className="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
           {cart.map((l) => {
-            const p = getProduct(l.productId);
-            if (!p) return null;
+            const price = priceOf(l, lookup);
+            if (price === null) return null;
+            const box = l.mode === "box" ? getBox(l.productId) : undefined;
+            const p = box ? getProduct(box.items[0]?.productId ?? "") : getProduct(l.productId);
+            const name = box ? `${box.icon} ${box.name[locale]}` : p?.name;
+            const detail = box
+              ? `${t.box} · ${formatDh(box.price, locale)}`
+              : p && `${p.size} · ${l.mode === "lot" ? t.lotOf(p.lot.qty) : t.unit} · ${formatDh(l.mode === "lot" ? p.lot.price : p.unitPrice, locale)}`;
             return (
               <li key={`${l.productId}-${l.mode}`} className="flex items-center gap-3 p-3">
-                <ProductTile product={p} compact className="w-20 shrink-0 rounded-xl" />
+                {p ? <ProductTile product={p} compact className="w-20 shrink-0 rounded-xl" /> : <span className="grid w-20 shrink-0 place-items-center text-3xl">{box?.icon}</span>}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{p.name}</p>
-                  <p className="text-xs text-muted">
-                    {p.size} · {l.mode === "lot" ? t.lotOf(p.lot.qty) : t.unit} · {formatDh(l.mode === "lot" ? p.lot.price : p.unitPrice, locale)}
-                  </p>
+                  <p className="truncate text-sm font-semibold">{name}</p>
+                  <p className="text-xs text-muted">{detail}</p>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="flex items-center rounded-lg border border-line" dir="ltr">
                       <button className="px-2.5 py-1 text-muted" onClick={() => setQty(l.productId, l.mode, l.qty - 1)} aria-label="-">−</button>
@@ -110,13 +114,14 @@ export default function CartPage() {
                     <button className="text-xs text-danger" onClick={() => setQty(l.productId, l.mode, 0)}>✕</button>
                   </div>
                 </div>
-                <span className="text-sm font-bold">{formatDh(linePrice(p, l.mode, l.qty), locale)}</span>
+                <span className="text-sm font-bold">{formatDh(price, locale)}</span>
               </li>
             );
           })}
         </ul>
 
         <div className={`mt-4 rounded-2xl p-4 ${totals.missing > 0 ? "bg-sun-400/20" : "bg-ok/10"}`}>
+          {totals.channel === "gros" && <p className="mb-1 text-xs font-semibold text-navy-800">📦 {t.wholesaleCart(min)}</p>}
           <p className={`text-sm font-semibold ${totals.missing > 0 ? "text-warn" : "text-ok"}`}>
             {totals.missing > 0 ? t.minLeft(formatDh(totals.missing, locale), min) : t.minOk(min)}
           </p>

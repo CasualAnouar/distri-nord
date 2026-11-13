@@ -3,8 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import type { Category, Product } from "@/data/products";
+import type { Box } from "@/data/boxes";
 import type { City, Config, Settings } from "./config";
-import { cartTotals, type AddressReply, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
+import { cartTotals, type AddressReply, type Lookup, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
 import * as actions from "./actions";
 import type { PlaceOrderResult } from "./actions";
 
@@ -23,6 +24,9 @@ type Store = {
   categories: Category[];
   catalog: Product[]; // visible products only, for the shop
   getProduct: (id: string) => Product | undefined;
+  boxes: Box[]; // visible boxes only, for the shop
+  getBox: (id: string) => Box | undefined;
+  lookup: Lookup;
   cart: CartLine[];
   addToCart: (productId: string, mode: Mode, qty?: number) => void;
   setQty: (productId: string, mode: Mode, qty: number) => void;
@@ -43,6 +47,8 @@ type Store = {
   saveProduct: (p: Product) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   removeProduct: (id: string) => void;
+  saveBox: (box: Box) => void;
+  removeBox: (id: string) => void;
   /** Saves the shop order of products: every product id, first shown first. */
   reorderProducts: (ids: string[]) => void;
 };
@@ -155,18 +161,31 @@ export function StoreProvider({
   const activeCities = useMemo(() => config.cities.filter((c) => c.active), [config.cities]);
   const byId = useMemo(() => new Map(config.products.map((p) => [p.id, p])), [config.products]);
   const getProduct = useCallback((id: string) => byId.get(id), [byId]);
+  const boxes = useMemo(() => config.boxes.filter((b) => !b.hidden), [config.boxes]);
+  const boxById = useMemo(() => new Map(config.boxes.map((b) => [b.id, b])), [config.boxes]);
+  const getBox = useCallback((id: string) => boxById.get(id), [boxById]);
+  const lookup = useMemo<Lookup>(() => ({ product: getProduct, box: getBox }), [getProduct, getBox]);
   // Lines whose product is gone or hidden are not part of the cart any more, and a product switched
   // to "lot only" can no longer be bought by the piece, even if it already sits in a cart.
   const cart = useMemo(
     () =>
       rawCart.filter((l) => {
+        if (l.mode === "box") {
+          const b = boxById.get(l.productId);
+          return b && !b.hidden;
+        }
         const p = byId.get(l.productId);
         return p && !p.hidden && !(l.mode === "unit" && p.lotOnly);
       }),
-    [rawCart, byId],
+    [rawCart, byId, boxById],
   );
 
-  const totals = (cityId?: string) => cartTotals(cart, getProduct, { cities: config.cities, minCart: config.settings.minCart, cityId });
+  const totals = (cityId?: string) => cartTotals(cart, lookup, {
+      cities: config.cities,
+      minCart: config.settings.minCart,
+      wholesaleMinCart: config.settings.wholesaleMinCart,
+      cityId,
+    });
 
   const setQty = (productId: string, mode: Mode, qty: number) => {
     const rest = cart.filter((l) => !(l.productId === productId && l.mode === mode));
@@ -231,6 +250,9 @@ export function StoreProvider({
     categories: config.categories,
     catalog,
     getProduct,
+    boxes,
+    getBox,
+    lookup,
     cart,
     addToCart,
     setQty,
@@ -251,6 +273,8 @@ export function StoreProvider({
     updateProduct: (id, patch) =>
       save((c) => ({ ...c, products: c.products.map((p) => (p.id === id ? { ...p, ...patch } : p)) }), () => actions.updateProduct(id, patch)),
     removeProduct: (id) => save((c) => ({ ...c, products: c.products.filter((p) => p.id !== id) }), () => actions.removeProduct(id)),
+    saveBox: (box) => save((c) => ({ ...c, boxes: upsert(c.boxes, box) }), () => actions.saveBox(box)),
+    removeBox: (id) => save((c) => ({ ...c, boxes: c.boxes.filter((b) => b.id !== id) }), () => actions.removeBox(id)),
     reorderProducts: (ids) =>
       save(
         (c) => {

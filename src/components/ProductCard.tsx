@@ -1,24 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { Product } from "@/data/products";
 import { useLocale } from "@/i18n/locale";
 import { useStore } from "@/lib/store";
-import { formatDh, lotSaving, type Mode } from "@/lib/shop";
+import { formatDh, lotSaving, type Channel } from "@/lib/shop";
 import { ProductTile } from "./ProductTile";
 
-export function ProductCard({ product }: { product: Product }) {
+// Retail shop sells by the piece; the wholesale shop (/gros) sells by the lot.
+export function ProductCard({ product, channel = "detail" }: { product: Product; channel?: Channel }) {
   const { locale, t } = useLocale();
-  const { addToCart, settings } = useStore();
-  const [picked, setMode] = useState<Mode>("lot");
-  const mode: Mode = product.lotOnly ? "lot" : picked;
+  const { addToCart, settings, cart } = useStore();
+  // Lot-only products are never sold by the piece, even in the retail shop.
+  const mode = channel === "gros" || product.lotOnly ? "lot" : "unit";
   const [qty, setQty] = useState(1);
   const [flash, setFlash] = useState(false);
 
-  const needed = mode === "lot" ? product.lot.qty * qty : qty;
+  const inCart = cart.filter((l) => l.productId === product.id && l.mode !== "box").reduce((a, l) => a + (l.mode === "lot" ? product.lot.qty : 1) * l.qty, 0);
+  const needed = (mode === "lot" ? product.lot.qty : 1) * qty + inCart;
   const out = product.stock <= 0;
   const tooMany = needed > product.stock;
   const price = mode === "lot" ? product.lot.price : product.unitPrice;
+  const perPiece = +(product.lot.price / product.lot.qty).toFixed(2);
   const saving = lotSaving(product);
 
   const add = () => {
@@ -44,34 +48,17 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="flex flex-1 flex-col gap-3 p-3">
         <div>
           <h3 className="text-sm font-semibold leading-snug">{product.name}</h3>
-          <p className="text-xs text-muted"><bdi dir="ltr">{product.size}</bdi></p>
+          <p className="text-xs text-muted">
+            <bdi dir="ltr">{product.size}</bdi>
+            {mode === "lot" && <> · {t.lotOf(product.lot.qty)}{product.lotOnly && ` · ${t.lotOnly}`}</>}
+          </p>
         </div>
-
-        {product.lotOnly ? (
-          <div className="rounded-xl bg-paper p-1 text-xs font-semibold">
-            <span className="block whitespace-nowrap rounded-lg bg-navy-900 px-1 py-1.5 text-center text-[11px] text-white shadow sm:text-xs">{t.lotOf(product.lot.qty)} · {t.lotOnly}</span>
-          </div>
-        ) : (
-        <div className="grid grid-cols-2 rounded-xl bg-paper p-1 text-xs font-semibold" role="radiogroup">
-          {(["lot", "unit"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              role="radio"
-              aria-checked={mode === m}
-              onClick={() => setMode(m)}
-              className={`whitespace-nowrap rounded-lg px-1 py-1.5 text-[11px] sm:text-xs ${mode === m ? "bg-navy-900 text-white shadow" : "text-muted"}`}
-            >
-              {m === "lot" ? t.lotOf(product.lot.qty) : t.unit}
-            </button>
-          ))}
-        </div>
-        )}
 
         <div className="flex items-end justify-between gap-2">
           <div>
             <div className="text-lg font-extrabold text-navy-900">{formatDh(price, locale)}</div>
             <div className="text-[11px] text-muted">
-              {mode === "lot" ? `${formatDh(+(product.lot.price / product.lot.qty).toFixed(2), locale)} ${t.perUnit}` : `${formatDh(product.unitPrice, locale)} ${t.perUnit}`}
+              {mode === "lot" ? `${formatDh(perPiece, locale)} ${t.perUnit}` : t.unit}
             </div>
           </div>
           {mode === "lot" && saving > 0 && <span dir="ltr" className="rounded-md bg-ok/10 px-1.5 py-0.5 text-xs font-bold text-ok">{t.save(saving)}</span>}
@@ -90,6 +77,11 @@ export function ProductCard({ product }: { product: Product }) {
           >
             {out ? t.outOfStock : flash ? t.added : t.add}
           </button>
+          {mode === "unit" && settings.wholesaleEnabled && saving > 0 && (
+            <Link href={`/${locale}/gros`} className="text-center text-[11px] font-semibold text-navy-800 hover:underline">
+              {t.wholesaleHint(formatDh(perPiece, locale), product.lot.qty)}
+            </Link>
+          )}
         </div>
       </div>
     </article>

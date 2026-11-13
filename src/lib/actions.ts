@@ -6,10 +6,13 @@ import { updateTag } from "next/cache";
 import { adminAuthorized } from "@/lib/admin-auth";
 import type { City, Config, Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
-import { badAmounts, cartTotals, normalizePhone, type AddressReply, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
+import type { Box } from "@/data/boxes";
+import { badAmounts, cartTotals, validAmount, normalizePhone, type AddressReply, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
 import {
   STORE_TAG,
+  READ_ONLY,
   createOrder,
+  deleteBox,
   deleteCategory,
   deleteCity,
   deleteProduct,
@@ -21,6 +24,7 @@ import {
   updateOrderStatus,
   markLinkSent,
   resetOrderToStart,
+  writeBox,
   writeCategory,
   writeCity,
   writeProduct,
@@ -35,7 +39,7 @@ import { syncOrderToWhatsApp } from "@/lib/wa/flows";
 
 export type PlaceOrderResult =
   | { ok: true; orderId: string }
-  | { ok: false; error: "minCart" | "stock" | "unavailable" | "lotOnly" | "city" | "customer" | "server"; productName?: string };
+  | { ok: false; error: "minCart" | "stock" | "unavailable" | "lotOnly" | "city" | "customer" | "preview" | "server"; productName?: string };
 
 class Refused extends Error {
   constructor(
@@ -62,6 +66,8 @@ async function afterOrderChange(order: Order) {
 }
 
 export async function placeOrder(lines: CartLine[], rawCustomer: Customer, locale: "fr" | "ar"): Promise<PlaceOrderResult> {
+  // Preview deployments read the live shop but never write to it.
+  if (READ_ONLY) return { ok: false, error: "preview" };
   try {
     const config = await getFreshConfig();
     const phone = normalizePhone(str(rawCustomer?.phone, 30));
@@ -79,24 +85,45 @@ export async function placeOrder(lines: CartLine[], rawCustomer: Customer, local
     if (customer.city && !city) return { ok: false, error: "city" };
 
     const clean = (Array.isArray(lines) ? lines : [])
-      .filter((l) => l && typeof l.productId === "string" && (l.mode === "lot" || l.mode === "unit") && Number.isInteger(l.qty) && l.qty > 0 && l.qty <= 10000)
+      .filter((l) => l && typeof l.productId === "string" && (l.mode === "lot" || l.mode === "unit" || l.mode === "box") && Number.isInteger(l.qty) && l.qty > 0 && l.qty <= 10000)
       .map((l) => ({ productId: l.productId, mode: l.mode, qty: l.qty }));
     if (!clean.length) return { ok: false, error: "unavailable" };
 
+    const boxes = new Map(config.boxes.map((b) => [b.id, b]));
+    // A box takes its products out of stock, so the transaction reads them too.
+    const productIds = clean.flatMap((l) => (l.mode === "box" ? (boxes.get(l.productId)?.items ?? []).map((it) => it.productId) : [l.productId]));
+
     const order = await createOrder(
-      clean.map((l) => l.productId),
+      productIds,
       (products) => {
         const units = new Map<string, number>();
+        const take = (p: Product, n: number) => {
+          units.set(p.id, (units.get(p.id) ?? 0) + n);
+          if ((units.get(p.id) ?? 0) > p.stock) throw new Refused("stock", p.name);
+        };
         const orderLines = clean.map((l) => {
+          if (l.mode === "box") {
+            const b = boxes.get(l.productId);
+            if (!b || b.hidden || !b.items.length) throw new Refused("unavailable", b?.name.fr);
+            for (const it of b.items) {
+              const p = products.get(it.productId);
+              if (!p || p.hidden) throw new Refused("unavailable", b.name.fr);
+              take(p, it.qty * l.qty);
+            }
+            return { ...l, name: b.name.fr, size: "Box", unitsPerLine: 0, price: b.price * l.qty, items: b.items };
+          }
           const p = products.get(l.productId);
           if (!p || p.hidden) throw new Refused("unavailable", p?.name);
           if (l.mode === "unit" && p.lotOnly) throw new Refused("lotOnly", p.name);
           const unitsPerLine = l.mode === "lot" ? p.lot.qty : 1;
-          units.set(p.id, (units.get(p.id) ?? 0) + unitsPerLine * l.qty);
-          if ((units.get(p.id) ?? 0) > p.stock) throw new Refused("stock", p.name);
+          take(p, unitsPerLine * l.qty);
           return { ...l, name: p.name, size: p.size, unitsPerLine, price: (l.mode === "lot" ? p.lot.price : p.unitPrice) * l.qty };
         });
-        const t = cartTotals(clean, (id) => products.get(id), { cities: config.cities, minCart: config.settings.minCart, cityId: customer.city });
+        const t = cartTotals(
+          clean,
+          { product: (id) => products.get(id), box: (id) => boxes.get(id) },
+          { cities: config.cities, minCart: config.settings.minCart, wholesaleMinCart: config.settings.wholesaleMinCart, cityId: customer.city },
+        );
         if (t.missing > 0) throw new Refused("minCart");
         const now = new Date().toISOString();
         return {
@@ -231,5 +258,19 @@ export async function reorderProducts(ids: string[]) {
   await requireAdmin();
   if (!Array.isArray(ids) || ids.length > 2000) throw new Error("Bad order");
   await writeProductOrder([...new Set(ids.filter((id): id is string => typeof id === "string"))]);
+  updateTag(STORE_TAG);
+}
+
+export async function saveBox(box: Box) {
+  await requireAdmin();
+  if (!box || typeof box.id !== "string" || !box.id || !validAmount(box.price)) throw new Error("Invalid box");
+  const items = (Array.isArray(box.items) ? box.items : []).filter((it) => typeof it?.productId === "string" && Number.isInteger(it.qty) && it.qty > 0);
+  await writeBox({ ...box, items });
+  updateTag(STORE_TAG);
+}
+
+export async function removeBox(id: string) {
+  await requireAdmin();
+  await deleteBox(str(id, 80));
   updateTag(STORE_TAG);
 }

@@ -8,11 +8,11 @@ import { formatDh } from "@/lib/shop";
 // Sticky reminder of the order minimum while browsing.
 export function CartBar() {
   const { locale, t } = useLocale();
-  const { totals, settings } = useStore();
-  const { subtotal, count, missing } = totals();
-  const min = formatDh(settings.minCart, locale);
+  const { totals } = useStore();
+  const { subtotal, count, missing, min: minCart } = totals();
+  const min = formatDh(minCart, locale);
   if (count === 0) return null;
-  const pct = Math.min(100, (subtotal / settings.minCart) * 100);
+  const pct = Math.min(100, (subtotal / minCart) * 100);
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
