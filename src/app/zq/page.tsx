@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useCityName, useStore } from "@/lib/store";
-import { formatDh, mapsUrl, sortedLines, type Order, type OrderStatus } from "@/lib/shop";
+import { editable, formatDh, mapsUrl, sortedLines, type Order, type OrderStatus } from "@/lib/shop";
 import { dicts } from "@/i18n/dict";
 import { OrderChats } from "@/components/OrderChats";
 import { statusMessage, waUrl } from "@/lib/walinks";
+import { EditOrder, OrderEdits } from "@/components/admin/EditOrder";
 
 const t = dicts.fr;
 const badge: Record<OrderStatus, string> = {
@@ -88,6 +89,7 @@ export default function AdminOrders() {
   const [sort, setSort] = useState<"recent" | "old" | "name" | "id">("recent");
   const [open, setOpen] = useState<string | null>(null);
   const [chat, setChat] = useState<Order | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
 
   if (!ready) return null;
   const today = new Date().toDateString();
@@ -100,6 +102,7 @@ export default function AdminOrders() {
       sort === "old" ? a.createdAt.localeCompare(b.createdAt) : sort === "name" ? a.customer.name.localeCompare(b.customer.name, "fr", { sensitivity: "base" }) : sort === "id" ? a.id.localeCompare(b.id) : b.createdAt.localeCompare(a.createdAt),
     );
   const liveChat = chat && orders.find((o) => o.id === chat.id);
+  const editingOrder = editing ? orders.find((o) => o.id === editing) : undefined;
 
   return (
     <div>
@@ -150,6 +153,7 @@ export default function AdminOrders() {
               <button onClick={() => setOpen(isOpen ? null : o.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 p-4 text-start">
                 <span className="font-mono text-sm font-bold">{o.id}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${badge[o.status]}`}>{t.status[o.status]}</span>
+                {(o.edits?.length ?? 0) > 0 && <span className="rounded-full bg-sun-400/30 px-2 py-0.5 text-xs font-bold text-warn">✏️ Modifiée</span>}
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {o.customer.name} · {cityName(o.customer.city) || "Ville à confirmer"}{o.customer.district && `, ${o.customer.district}`}
                 </span>
@@ -181,7 +185,12 @@ export default function AdminOrders() {
                         </li>
                       ))}
                       <li className="flex justify-between border-t border-line pt-1 text-muted"><span>Livraison</span><span>{o.delivery ? formatDh(o.delivery) : "Gratuite"}</span></li>
+                      {Math.abs(o.total - (o.subtotal + o.delivery)) > 0.001 && (
+                        <li className="flex justify-between text-muted"><span>Ajustement</span><span>{formatDh(Math.round((o.total - o.subtotal - o.delivery) * 100) / 100)}</span></li>
+                      )}
+                      <li className="flex justify-between font-bold"><span>Total</span><span>{formatDh(o.total)}</span></li>
                     </ul>
+                    <OrderEdits order={o} />
                   </div>
                   <div className="flex flex-col gap-2">
                     {!live && o.status === "new" && waUrl(o.customer.phone, "") &&
@@ -250,6 +259,11 @@ export default function AdminOrders() {
                           Annuler la commande
                         </a>
                       ))}
+                    {editable(o) && (
+                      <button onClick={() => setEditing(o.id)} className="rounded-xl border border-navy-900/30 bg-white px-4 py-2.5 text-sm font-semibold text-navy-900">
+                        ✏️ Modifier la commande (produits, quantités, montant)
+                      </button>
+                    )}
                     {(o.status !== "new" || (o.linkSent?.length ?? 0) > 0) && (
                       <button onClick={() => restart(o)} className="self-start text-xs font-semibold text-muted underline">
                         ↺ Remettre à l&apos;étape 1
@@ -268,6 +282,8 @@ export default function AdminOrders() {
         })}
         {list.length === 0 && <li className="py-10 text-center text-muted">Aucune commande.</li>}
       </ul>
+
+      {editingOrder && <EditOrder key={editingOrder.id} order={editingOrder} onClose={() => setEditing(null)} />}
 
       {liveChat && (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-ink/60 p-4" onClick={() => setChat(null)}>

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, u
 import { useRouter } from "next/navigation";
 import type { Category, Product } from "@/data/products";
 import type { City, Config, Settings } from "./config";
-import { cartTotals, type AddressReply, type CartLine, type Customer, type Mode, type Order, type OrderStatus } from "./shop";
+import { cartTotals, type AddressReply, type CartLine, type Customer, type Mode, type EditOrderResult, type Order, type OrderEditInput, type OrderStatus } from "./shop";
 import * as actions from "./actions";
 import type { PlaceOrderResult } from "./actions";
 
@@ -33,6 +33,8 @@ type Store = {
   setStatus: (orderId: string, status: OrderStatus, linkSent?: boolean) => Promise<{ order: Order; changed: boolean } | null>;
   markLinkSent: (orderId: string, status: OrderStatus) => Promise<Order | null>;
   resetOrder: (orderId: string) => Promise<Order | null>;
+  /** Dashboard: changes an order's lines, delivery fee and amount collected (stock follows). */
+  editOrder: (orderId: string, edit: OrderEditInput) => Promise<EditOrderResult>;
   confirmAddress: (orderId: string, reply: AddressReply) => Promise<Order | null>;
   totals: (cityId?: string) => ReturnType<typeof cartTotals>;
   saveSettings: (patch: Partial<Settings>) => void;
@@ -197,6 +199,16 @@ export function StoreProvider({
     return order;
   };
 
+  const editOrder = async (orderId: string, edit: OrderEditInput) => {
+    const r = await actions.editOrder(orderId, edit);
+    if (r.order) {
+      const order = r.order;
+      setOrders((list) => list.map((o) => (o.id === order.id ? order : o)));
+    }
+    if (r.ok && r.changed) router.refresh(); // stock changed
+    return r;
+  };
+
   const markLinkSent = async (orderId: string, status: OrderStatus) => {
     const order = await actions.markOrderLinkSent(orderId, status);
     if (order) setOrders((list) => list.map((o) => (o.id === order.id ? order : o)));
@@ -240,6 +252,7 @@ export function StoreProvider({
     setStatus,
     markLinkSent,
     resetOrder,
+    editOrder,
     confirmAddress,
     totals,
     saveSettings: (patch) => save((c) => ({ ...c, settings: { ...c.settings, ...patch } }), () => actions.saveSettings(patch)),

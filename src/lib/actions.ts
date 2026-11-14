@@ -6,10 +6,11 @@ import { updateTag } from "next/cache";
 import { adminAuthorized } from "@/lib/admin-auth";
 import type { City, Config, Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
-import { badAmounts, cartTotals, normalizePhone, type AddressReply, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
+import { badAmounts, cartTotals, normalizePhone, validAmount, type AddressReply, type EditOrderResult, type OrderEditInput, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
 import {
   STORE_TAG,
   createOrder,
+  editOrderLines,
   deleteCategory,
   deleteCity,
   deleteProduct,
@@ -163,6 +164,22 @@ export async function setOrderStatus(orderId: string, status: OrderStatus, linkS
 export async function resetOrder(orderId: string): Promise<Order | null> {
   await requireAdmin();
   return resetOrderToStart(str(orderId, 24));
+}
+
+/**
+ * The seller changes an order after it was placed (the customer changed it at the door, for
+ * example): quantities, products, delivery fee, amount collected, with a note. Stock follows the
+ * difference. No WhatsApp message is sent.
+ */
+export async function editOrder(orderId: string, raw: OrderEditInput): Promise<EditOrderResult> {
+  await requireAdmin();
+  const lines = (Array.isArray(raw?.lines) ? raw.lines : [])
+    .filter((l) => l && typeof l.productId === "string" && l.productId.length <= 200 && (l.mode === "lot" || l.mode === "unit") && Number.isInteger(l.qty) && l.qty >= 0 && l.qty <= 10000)
+    .map((l) => ({ productId: l.productId, mode: l.mode, qty: l.qty }));
+  if (!validAmount(raw?.delivery) || !validAmount(raw?.total) || !Number.isInteger(raw?.seen) || lines.length > 500) throw new Error("Bad edit");
+  const r = await editOrderLines(str(orderId, 24), { lines, delivery: raw.delivery, total: raw.total, note: str(raw.note, 500), seen: raw.seen });
+  if (r.ok && r.changed) updateTag(STORE_TAG); // stock changed
+  return r;
 }
 
 export async function markOrderLinkSent(orderId: string, status: OrderStatus): Promise<Order | null> {
