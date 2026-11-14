@@ -19,7 +19,7 @@ import {
 import { firebaseConfigured, getDb } from "@/lib/firebase";
 import { defaultConfig, defaultSettings, type City, type Config, type Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
-import { NEXT_STATUS, type AddressReply, type Order, type OrderStatus } from "@/lib/shop";
+import { NEXT_STATUS, applyLineEdits, editable, linesSubtotal, unitsByProduct, type AddressReply, type EditOrderResult, type Order, type OrderEdit, type OrderEditInput, type OrderStatus } from "@/lib/shop";
 
 // Every Firestore read and write of the store goes through this file, on the server only.
 
@@ -159,6 +159,63 @@ export async function updateOrderStatus(id: string, status: OrderStatus, linkSen
     const next: Order = { ...order, status, history: [...order.history, { status, at: new Date().toISOString() }], ...(sent ? { linkSent: sent } : {}) };
     tx.update(ref, { status: next.status, history: next.history, ...(sent ? { linkSent: sent } : {}) });
     return { order: next, changed: true };
+  });
+}
+
+/**
+ * Applies the seller's edit to an order (any step but cancelled), in one transaction: the order's
+ * lines and amounts become the edited ones, the order as placed is kept once in `original`, the edit
+ * is added to `edits`, and stock moves by the difference (units added are taken out, units removed
+ * go back). No WhatsApp message is sent.
+ */
+export async function editOrderLines(id: string, input: OrderEditInput): Promise<EditOrderResult> {
+  const db = getDb();
+  return runTransaction(db, async (tx) => {
+    const ref = doc(db, C.orders, id);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return { ok: false, error: "notFound" };
+    const order = snap.data() as Order;
+    if (!editable(order)) return { ok: false, error: "closed", order };
+    if ((order.edits?.length ?? 0) !== input.seen) return { ok: false, error: "stale", order };
+
+    const ids = [...new Set([...order.lines.map((l) => l.productId), ...input.lines.map((l) => l.productId)])];
+    const snaps = await Promise.all(ids.map((pid) => tx.get(doc(db, C.products, pid))));
+    const products = new Map(snaps.filter((s) => s.exists()).map((s) => [s.id, s.data() as Product]));
+
+    const { lines, changes } = applyLineEdits(order.lines, input.lines, (pid) => products.get(pid));
+    if (!lines.length) return { ok: false, error: "empty", order };
+    const subtotal = linesSubtotal(lines);
+    const deliveryChanged = input.delivery !== order.delivery;
+    const totalChanged = input.total !== order.total;
+    if (!changes.length && !deliveryChanged && !totalChanged && !input.note) return { ok: true, order, changed: false };
+
+    const edit: OrderEdit = {
+      at: new Date().toISOString(),
+      status: order.status,
+      note: input.note,
+      changes,
+      ...(deliveryChanged ? { delivery: { from: order.delivery, to: input.delivery } } : {}),
+      total: { from: order.total, to: input.total },
+    };
+    const next: Order = {
+      ...order,
+      lines,
+      subtotal,
+      delivery: input.delivery,
+      total: input.total,
+      original: order.original ?? { lines: order.lines, subtotal: order.subtotal, delivery: order.delivery, total: order.total },
+      edits: [...(order.edits ?? []), edit],
+    };
+
+    const before = unitsByProduct(order.lines);
+    const after = unitsByProduct(lines);
+    for (const pid of new Set([...before.keys(), ...after.keys()])) {
+      const diff = (after.get(pid) ?? 0) - (before.get(pid) ?? 0);
+      const p = products.get(pid);
+      if (diff && p) tx.update(doc(db, C.products, pid), { stock: Math.max(0, p.stock - diff) });
+    }
+    tx.update(ref, { lines: next.lines, subtotal, delivery: next.delivery, total: next.total, original: next.original, edits: next.edits });
+    return { ok: true, order: next, changed: true };
   });
 }
 

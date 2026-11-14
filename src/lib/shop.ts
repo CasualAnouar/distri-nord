@@ -19,11 +19,28 @@ export type Customer = {
   note: string;
 };
 
+export type OrderLine = CartLine & { name: string; size: string; unitsPerLine: number; price: number };
+
+/** One line of an order edit: how many lots or pieces of a product before and after. */
+export type OrderEditChange = { productId: string; name: string; mode: Mode; unitsPerLine: number; from: number; to: number };
+
+/** A change the seller made to an order after it was placed (e.g. the customer changed it at the door). */
+export type OrderEdit = {
+  at: string;
+  status: OrderStatus; // order status when it was edited
+  note: string;
+  changes: OrderEditChange[];
+  delivery?: { from: number; to: number };
+  total: { from: number; to: number };
+};
+
 export type Order = {
   id: string;
   createdAt: string;
   locale: "fr" | "ar";
-  lines: (CartLine & { name: string; size: string; unitsPerLine: number; price: number })[];
+  // Lines and amounts are always the final ones, after any edit: this is what sales figures count.
+  // `total` is the cash to collect (or collected); after an edit it may differ from subtotal + delivery.
+  lines: OrderLine[];
   subtotal: number;
   delivery: number;
   total: number;
@@ -35,7 +52,74 @@ export type Order = {
   linkSent?: OrderStatus[];
   // Real WhatsApp messages for this order (written by the server only).
   waLog?: WaLogEntry[];
+  // History only: the order as the customer placed it (saved at the first edit) and each edit.
+  original?: { lines: OrderLine[]; subtotal: number; delivery: number; total: number };
+  edits?: OrderEdit[];
 };
+
+/** Statuses at which the seller can still edit an order (a cancelled order is closed). */
+export const editable = (o: Order) => o.status !== "cancelled";
+
+/** What the seller sends to edit an order: the final lines, delivery fee and amount to collect. */
+export type OrderEditInput = {
+  lines: { productId: string; mode: Mode; qty: number }[];
+  delivery: number;
+  total: number;
+  note: string;
+  /** Number of edits the seller saw, so two phones editing at once cannot overwrite each other. */
+  seen: number;
+};
+
+export type EditOrderResult = { ok: true; order: Order; changed: boolean } | { ok: false; error: "notFound" | "closed" | "stale" | "empty"; order?: Order };
+
+/** Price of one lot or one piece on an order line, as it was sold. */
+export const lineUnitPrice = (l: OrderLine) => (l.qty > 0 ? l.price / l.qty : 0);
+
+/** Units taken out of stock by a set of lines, per product. */
+export function unitsByProduct(lines: { productId: string; unitsPerLine: number; qty: number }[]) {
+  const m = new Map<string, number>();
+  for (const l of lines) m.set(l.productId, (m.get(l.productId) ?? 0) + l.unitsPerLine * l.qty);
+  return m;
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Builds the edited order lines and the list of changes. Lines already on the order keep the price
+ * they were sold at; new lines take the current catalogue price. Lines with quantity 0 are dropped.
+ */
+export function applyLineEdits(
+  current: OrderLine[],
+  wanted: { productId: string; mode: Mode; qty: number }[],
+  product: (id: string) => Product | undefined,
+): { lines: OrderLine[]; changes: OrderEditChange[] } {
+  const key = (l: { productId: string; mode: Mode }) => `${l.productId}|${l.mode}`;
+  const want = new Map<string, number>();
+  for (const w of wanted) want.set(key(w), (want.get(key(w)) ?? 0) + w.qty);
+  const lines: OrderLine[] = [];
+  const changes: OrderEditChange[] = [];
+  const seen = new Set<string>();
+  for (const l of current) {
+    const k = key(l);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const qty = want.get(k) ?? 0;
+    if (qty !== l.qty) changes.push({ productId: l.productId, name: l.name, mode: l.mode, unitsPerLine: l.unitsPerLine, from: l.qty, to: qty });
+    if (qty > 0) lines.push({ ...l, qty, price: round2(lineUnitPrice(l) * qty) });
+  }
+  for (const [k, qty] of want) {
+    if (seen.has(k) || qty <= 0) continue;
+    const [productId, mode] = k.split("|") as [string, Mode];
+    const p = product(productId);
+    if (!p) throw new Error(`Unknown product ${productId}`);
+    const unitsPerLine = mode === "lot" ? p.lot.qty : 1;
+    lines.push({ productId, mode, qty, name: p.name, size: p.size, unitsPerLine, price: round2(linePrice(p, mode, qty)) });
+    changes.push({ productId, name: p.name, mode, unitsPerLine, from: 0, to: qty });
+  }
+  return { lines, changes };
+}
+
+export const linesSubtotal = (lines: OrderLine[]) => round2(lines.reduce((a, l) => a + l.price, 0));
 
 // One WhatsApp message sent or received about an order. "out" = sent by the shop's number.
 // Order lines sorted by product name, A to Z (dashboard and WhatsApp messages).
