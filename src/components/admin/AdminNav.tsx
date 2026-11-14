@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 // secret never ships in the bundle.
 const links = [
   { href: "", label: "Commandes" },
+  { href: "/statistiques", label: "Statistiques" },
   { href: "/produits", label: "Produits & stock" },
   { href: "/parametres", label: "Paramètres" },
 ];
