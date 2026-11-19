@@ -6,6 +6,7 @@ import { OrderView } from "@/components/OrderView";
 
 // An order page is private to whoever has its link: never cached, never indexed.
 export const dynamic = "force-dynamic";
+export const dynamicParams = true; // any order number (the layout above only allows fr and ar)
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function OrderPage({ params }: { params: Promise<{ locale: string; id: string }> }) {

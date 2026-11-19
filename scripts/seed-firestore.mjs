@@ -1,15 +1,10 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { initializeApp } from "firebase/app";
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  collection,
-  getDocs,
-  writeBatch,
-} from "firebase/firestore";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+
+// Fills a Firestore EMULATOR with the demo catalog, for local testing only. It refuses to run
+// against the live database: there it would overwrite the seller's real products and prices.
 
 // Read .env.local
 const envPath = resolve(process.cwd(), ".env.local");
@@ -29,19 +24,14 @@ try {
   console.warn("Could not load .env.local:", e.message);
 }
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+if (!process.env.FIRESTORE_EMULATOR_HOST) {
+  console.error("Refusing to seed: FIRESTORE_EMULATOR_HOST is not set, so this would write to the live database.");
+  process.exit(1);
+}
 
-console.log("Connecting to Firebase Project:", firebaseConfig.projectId);
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "demo-distri";
+console.log("Seeding the emulator at", process.env.FIRESTORE_EMULATOR_HOST, "for project", projectId);
+const db = getFirestore(initializeApp({ projectId }));
 
 // Data defaults
 const defaultSettings = {
@@ -107,51 +97,18 @@ const defaultProducts = [
 ];
 
 async function seed() {
-  console.log("Seeding Firestore database...");
-  const batch = writeBatch(db);
-
-  // Settings
-  console.log("- Writing settings...");
-  batch.set(doc(db, "settings", "global"), defaultSettings);
-
-  // Cities
-  console.log("- Writing cities...");
-  for (const c of defaultCities) {
-    batch.set(doc(db, "cities", c.id), c);
-  }
-
-  // Categories
-  console.log("- Writing categories...");
-  for (const cat of defaultCategories) {
-    batch.set(doc(db, "categories", cat.id), cat);
-  }
-
-  // Products
-  console.log(`- Writing ${defaultProducts.length} products...`);
-  for (const p of defaultProducts) {
-    batch.set(doc(db, "products", p.id), p);
-  }
-
+  const batch = db.batch();
+  batch.set(db.collection("settings").doc("global"), defaultSettings);
+  for (const c of defaultCities) batch.set(db.collection("cities").doc(c.id), c);
+  for (const cat of defaultCategories) batch.set(db.collection("categories").doc(cat.id), cat);
+  for (const p of defaultProducts) batch.set(db.collection("products").doc(p.id), p);
   await batch.commit();
-  console.log("Batch commit successful!");
-
-  // Verify
-  console.log("Verifying seeded documents...");
-  const prods = await getDocs(collection(db, "products"));
-  console.log(`Verified ${prods.size} products in Firestore.`);
-  const cities = await getDocs(collection(db, "cities"));
-  console.log(`Verified ${cities.size} cities in Firestore.`);
-  const cats = await getDocs(collection(db, "categories"));
-  console.log(`Verified ${cats.size} categories in Firestore.`);
-  const settingsSnap = await getDoc(doc(db, "settings", "global"));
-  console.log("Verified settings:", settingsSnap.exists() ? settingsSnap.data().storeName : "MISSING");
+  const prods = await db.collection("products").get();
+  console.log(`Seeded ${prods.size} products, ${defaultCities.length} zones, ${defaultCategories.length} categories.`);
 }
 
 seed()
-  .then(() => {
-    console.log("Firestore seeding completed successfully!");
-    process.exit(0);
-  })
+  .then(() => process.exit(0))
   .catch((err) => {
     console.error("Firestore seeding failed:", err);
     process.exit(1);

@@ -11,11 +11,13 @@
   --color-line: #dfe4ee;
   --color-ink: #111a2e;
   --color-muted: #5b6579;
-  --color-ok: #138a4b;
+  --color-ok: #0d6b3a;
   --color-warn: #b45309;
   --color-danger: #c62828;
   --color-wa: #25d366;
   --color-wa-dark: #075e54;
+  /* WhatsApp green dark enough for white text (5:1 and more) */
+  --color-wa-strong: #0e7a3e;
   --color-wa-bubble: #d9fdd3;
   --color-wa-bg: #efeae2;
 

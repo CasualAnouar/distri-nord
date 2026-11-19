@@ -5,12 +5,15 @@ import { getProductImage } from "@/lib/server/data";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const image = await getProductImage(decodeURIComponent(id));
-  const match = image?.match(/^data:(image\/[\w+.-]+);base64,(.+)$/s);
+  // Photos only: an SVG could carry script and run on the shop's address.
+  const match = image?.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/s);
   if (!match) return new Response("Not found", { status: 404 });
   return new Response(Buffer.from(match[2], "base64"), {
     headers: {
       "Content-Type": match[1],
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
 }

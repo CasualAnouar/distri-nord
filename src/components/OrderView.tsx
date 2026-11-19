@@ -57,7 +57,7 @@ export function OrderView({ initial }: { initial: Order | null }) {
       {wa.enabled && <p className="mx-auto mt-8 max-w-xl text-center font-semibold">{t.orderIntroLive(wa.businessPhone)}</p>}
       {wa.enabled && waLink && (
         <div className="mt-4 text-center">
-          <a href={`https://wa.me/${waLink}`} target="_blank" rel="noreferrer" className="inline-block rounded-xl bg-wa px-6 py-3 font-bold text-white">
+          <a href={`https://wa.me/${waLink}`} target="_blank" rel="noreferrer" className="inline-block rounded-xl bg-wa-strong px-6 py-3 font-bold text-white">
             💬 {t.openWhatsApp}
           </a>
         </div>

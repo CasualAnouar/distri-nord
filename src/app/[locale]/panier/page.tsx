@@ -99,15 +99,15 @@ export default function CartPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{p.name}</p>
                   <p className="text-xs text-muted">
-                    {p.size} · {l.mode === "lot" ? t.lotOf(p.lot.qty) : t.unit} · {formatDh(l.mode === "lot" ? p.lot.price : p.unitPrice, locale)}
+                    <bdi dir="ltr">{p.size}</bdi> · {l.mode === "lot" ? t.lotOf(p.lot.qty) : t.unit} · {formatDh(l.mode === "lot" ? p.lot.price : p.unitPrice, locale)}
                   </p>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="flex items-center rounded-lg border border-line" dir="ltr">
-                      <button className="px-2.5 py-1 text-muted" onClick={() => setQty(l.productId, l.mode, l.qty - 1)} aria-label="-">−</button>
+                      <button className="grid size-11 place-items-center text-lg text-muted" onClick={() => setQty(l.productId, l.mode, l.qty - 1)} aria-label={t.decrease}>−</button>
                       <span className="w-6 text-center text-sm font-semibold">{l.qty}</span>
-                      <button className="px-2.5 py-1 text-muted" onClick={() => setQty(l.productId, l.mode, l.qty + 1)} aria-label="+">+</button>
+                      <button className="grid size-11 place-items-center text-lg text-muted" onClick={() => setQty(l.productId, l.mode, l.qty + 1)} aria-label={t.increase}>+</button>
                     </div>
-                    <button className="text-xs text-danger" onClick={() => setQty(l.productId, l.mode, 0)}>✕</button>
+                    <button className="grid size-11 place-items-center text-danger" onClick={() => setQty(l.productId, l.mode, 0)} aria-label={t.remove(p.name)}>✕</button>
                   </div>
                 </div>
                 <span className="text-sm font-bold">{formatDh(linePrice(p, l.mode, l.qty), locale)}</span>
@@ -140,7 +140,7 @@ export default function CartPage() {
             <option value="">{t.chooseCity}</option>
             {cities.map((c) => (
               <option key={c.id} value={c.id}>
-                {c[locale]} · {c.fee === 0 ? t.free : `${formatDh(c.fee, locale)} (${t.free} ≥ ${formatDh(c.freeFrom, locale)})`}
+                {c[locale]} · {c.fee === 0 ? t.free : c.freeFrom > 0 ? `${formatDh(c.fee, locale)} (${t.free} ≥ ${formatDh(c.freeFrom, locale)})` : formatDh(c.fee, locale)}
               </option>
             ))}
           </select>
@@ -178,7 +178,7 @@ export default function CartPage() {
         <button
           type="submit"
           disabled={totals.missing > 0 || sending}
-          className="w-full rounded-xl bg-wa px-4 py-3.5 font-bold text-white shadow hover:brightness-95 disabled:bg-line disabled:text-muted"
+          className="w-full rounded-xl bg-wa-strong px-4 py-3.5 font-bold text-white shadow hover:brightness-95 disabled:bg-line disabled:text-muted"
         >
           {t.placeOrder} · {formatDh(totals.total, locale)}
         </button>

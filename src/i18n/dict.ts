@@ -51,6 +51,9 @@ const fr = {
   required: "Champ obligatoire",
   cod: "💵 Paiement en espèces à la livraison. Aucune carte bancaire nécessaire.",
   placeOrder: "Valider la commande",
+  decrease: "Retirer un",
+  increase: "Ajouter un",
+  remove: (name: string) => `Retirer ${name} du panier`,
   orderPlaced: "Commande envoyée !",
   orderNumber: "Commande",
   orderNotFound: "Commande introuvable. Vérifiez le lien reçu sur WhatsApp.",
@@ -61,6 +64,7 @@ const fr = {
     lotOnly: (name: string) => `${name} se vend uniquement en lot.`,
     city: "Cette zone de livraison n'est plus desservie.",
     customer: "Vérifiez votre nom et votre numéro.",
+    tooMany: "Vous avez déjà des commandes en attente. Le vendeur vous contacte sur WhatsApp avant d'en passer une nouvelle.",
     server: "La commande n'a pas pu être envoyée. Réessayez dans un instant.",
   },
   status: { new: "Nouvelle", confirmed: "Adresse confirmée", shipping: "En livraison", delivered: "Livrée", cancelled: "Annulée" },
@@ -82,7 +86,12 @@ const fr = {
   ],
   language: "العربية",
   viewPhoto: "Voir la photo",
-  close: "Fermer",
+  close: "Fermer",  notFoundTitle: "Page introuvable",
+  notFoundText: "Cette page n'existe pas ou a été déplacée.",
+  backToShop: "Retour à la boutique",
+  errorTitle: "Un problème est survenu",
+  errorText: "La page n'a pas pu se charger. Réessayez dans un instant.",
+  retry: "Réessayer",
 };
 
 type Dict = typeof fr;
@@ -133,6 +142,9 @@ const ar: Dict = {
   required: "حقل إلزامي",
   cod: "💵 الدفع نقداً عند الاستلام. لا حاجة لبطاقة بنكية.",
   placeOrder: "تأكيد الطلب",
+  decrease: "إنقاص واحد",
+  increase: "إضافة واحد",
+  remove: (name: string) => `حذف ${name} من السلة`,
   orderPlaced: "تم إرسال الطلب!",
   orderNumber: "الطلب",
   orderNotFound: "الطلب غير موجود. تحقق من الرابط الذي وصلك على واتساب.",
@@ -143,6 +155,7 @@ const ar: Dict = {
     lotOnly: (name: string) => `${name} يباع بالجملة فقط.`,
     city: "منطقة التوصيل هذه لم تعد متاحة.",
     customer: "تحقق من اسمك ورقمك.",
+    tooMany: "لديك طلبات قيد الانتظار. سيتواصل معك البائع عبر واتساب قبل طلب جديد.",
     server: "تعذر إرسال الطلب. أعد المحاولة بعد لحظة.",
   },
   status: { new: "جديد", confirmed: "تم تأكيد العنوان", shipping: "في الطريق", delivered: "تم التسليم", cancelled: "ملغى" },
@@ -165,6 +178,12 @@ const ar: Dict = {
   language: "Français",
   viewPhoto: "عرض الصورة",
   close: "إغلاق",
+  notFoundTitle: "الصفحة غير موجودة",
+  notFoundText: "هذه الصفحة غير موجودة أو تم نقلها.",
+  backToShop: "العودة إلى المتجر",
+  errorTitle: "حدث خطأ",
+  errorText: "تعذر تحميل الصفحة. أعد المحاولة بعد لحظة.",
+  retry: "إعادة المحاولة",
 };
 
 export const dicts: Record<Locale, Dict> = { fr, ar };

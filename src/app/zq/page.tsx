@@ -264,7 +264,7 @@ export default function AdminOrders() {
                         ✏️ Modifier la commande (produits, quantités, montant)
                       </button>
                     )}
-                    {(o.status !== "new" || (o.linkSent?.length ?? 0) > 0) && (
+                    {o.status !== "cancelled" && o.status !== "delivered" && (o.status !== "new" || (o.linkSent?.length ?? 0) > 0) && (
                       <button onClick={() => restart(o)} className="self-start text-xs font-semibold text-muted underline">
                         ↺ Remettre à l&apos;étape 1
                       </button>

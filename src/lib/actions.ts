@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { updateTag } from "next/cache";
 import { adminAuthorized } from "@/lib/admin-auth";
-import type { City, Config, Settings } from "@/lib/config";
+import type { City, Settings } from "@/lib/config";
 import type { Category, Product } from "@/data/products";
 import { badAmounts, cartTotals, normalizePhone, validAmount, type AddressReply, type EditOrderResult, type OrderEditInput, type CartLine, type Customer, type Order, type OrderStatus } from "@/lib/shop";
 import {
@@ -27,6 +27,7 @@ import {
   writeProduct,
   writeProductOrder,
   writeSettings,
+  countNewOrdersForPhone,
 } from "@/lib/server/data";
 import { syncOrderToWhatsApp } from "@/lib/wa/flows";
 
@@ -34,9 +35,12 @@ import { syncOrderToWhatsApp } from "@/lib/wa/flows";
 // the browser sent; dashboard actions also check the seller's login, since a server action can be
 // called from any page.
 
+/** Orders still waiting for confirmation that one phone number may have at once. */
+const MAX_OPEN_ORDERS_PER_PHONE = 3;
+
 export type PlaceOrderResult =
   | { ok: true; orderId: string }
-  | { ok: false; error: "minCart" | "stock" | "unavailable" | "lotOnly" | "city" | "customer" | "server"; productName?: string };
+  | { ok: false; error: "minCart" | "stock" | "unavailable" | "lotOnly" | "city" | "customer" | "tooMany" | "server"; productName?: string };
 
 class Refused extends Error {
   constructor(
@@ -79,8 +83,11 @@ export async function placeOrder(lines: CartLine[], rawCustomer: Customer, local
     const city = config.cities.find((c) => c.id === customer.city && c.active);
     if (customer.city && !city) return { ok: false, error: "city" };
 
-    const clean = (Array.isArray(lines) ? lines : [])
-      .filter((l) => l && typeof l.productId === "string" && (l.mode === "lot" || l.mode === "unit") && Number.isInteger(l.qty) && l.qty > 0 && l.qty <= 10000)
+    if (!Array.isArray(lines) || lines.length > 100) return { ok: false, error: "unavailable" };
+    // Stops a script from blocking the whole stock with fake orders under one number.
+    if ((await countNewOrdersForPhone(phone)) >= MAX_OPEN_ORDERS_PER_PHONE) return { ok: false, error: "tooMany" };
+    const clean = lines
+      .filter((l) => l && typeof l.productId === "string" && /^[\w-]{1,100}$/.test(l.productId) && (l.mode === "lot" || l.mode === "unit") && Number.isInteger(l.qty) && l.qty > 0 && l.qty <= 10000)
       .map((l) => ({ productId: l.productId, mode: l.mode, qty: l.qty }));
     if (!clean.length) return { ok: false, error: "unavailable" };
 
@@ -95,7 +102,7 @@ export async function placeOrder(lines: CartLine[], rawCustomer: Customer, local
           const unitsPerLine = l.mode === "lot" ? p.lot.qty : 1;
           units.set(p.id, (units.get(p.id) ?? 0) + unitsPerLine * l.qty);
           if ((units.get(p.id) ?? 0) > p.stock) throw new Refused("stock", p.name);
-          return { ...l, name: p.name, size: p.size, unitsPerLine, price: (l.mode === "lot" ? p.lot.price : p.unitPrice) * l.qty };
+          return { ...l, name: p.name, size: p.size, unitsPerLine, price: Math.round((l.mode === "lot" ? p.lot.price : p.unitPrice) * l.qty * 100) / 100 };
         });
         const t = cartTotals(clean, (id) => products.get(id), { cities: config.cities, minCart: config.settings.minCart, cityId: customer.city });
         if (t.missing > 0) throw new Refused("minCart");
@@ -146,6 +153,14 @@ export async function fetchOrder(orderId: string): Promise<Order | null> {
 
 // Dashboard
 
+/** A product photo: a web link, our own photo route, or an uploaded JPEG/PNG/WebP under ~900 KB. Never SVG. */
+function safeImage(image: unknown) {
+  if (image === undefined || image === null || image === "") return true;
+  if (typeof image !== "string") return false;
+  if (image.startsWith("data:")) return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image) && image.length < 900_000;
+  return /^(https?:\/\/|\/api\/images\/)/.test(image) && image.length < 2000;
+}
+
 async function requireAdmin() {
   if (!adminAuthorized((await headers()).get("authorization"))) throw new Error("Unauthorized");
 }
@@ -157,6 +172,7 @@ export async function setOrderStatus(orderId: string, status: OrderStatus, linkS
   await requireAdmin();
   if (!statuses.includes(status)) return null;
   const r = await updateOrderStatus(str(orderId, 24), status, linkSent === true);
+  if (r?.changed && status === "cancelled") updateTag(STORE_TAG); // stock given back
   if (r?.changed) await afterOrderChange(r.order);
   return r;
 }
@@ -188,10 +204,10 @@ export async function markOrderLinkSent(orderId: string, status: OrderStatus): P
   return markLinkSent(str(orderId, 24), status);
 }
 
-export async function fetchDashboard(): Promise<{ config: Config; orders: Order[] }> {
+/** The dashboard's 15-second refresh: orders only (the catalog with its photos is not re-read). */
+export async function fetchDashboard(): Promise<{ orders: Order[] }> {
   await requireAdmin();
-  const [config, orders] = await Promise.all([getFreshConfig(), listOrders()]);
-  return { config, orders };
+  return { orders: await listOrders() };
 }
 
 export async function saveSettings(patch: Partial<Settings>) {
@@ -224,15 +240,18 @@ export async function removeCategory(id: string) {
   updateTag(STORE_TAG);
 }
 
-export async function saveProduct(p: Product) {
+/** `baseStock` is the stock the form showed when it opened (see writeProduct). */
+export async function saveProduct(p: Product, baseStock?: number) {
   await requireAdmin();
+  if (!safeImage(p.image)) throw new Error("Invalid image");
   if (badAmounts(p).length) throw new Error(`Invalid amount: ${badAmounts(p).join(", ")}`);
-  await writeProduct(p);
+  await writeProduct(p, Number.isFinite(baseStock) ? baseStock : undefined);
   updateTag(STORE_TAG);
 }
 
 export async function updateProduct(id: string, patch: Partial<Product>) {
   await requireAdmin();
+  if ("image" in patch && !safeImage(patch.image)) throw new Error("Invalid image");
   if (badAmounts(patch).length) throw new Error(`Invalid amount: ${badAmounts(patch).join(", ")}`);
   await patchProduct(id, patch);
   updateTag(STORE_TAG);

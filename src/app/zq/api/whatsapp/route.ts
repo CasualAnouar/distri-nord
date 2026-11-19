@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminConfigured } from "@/lib/firebase-admin";
+import { adminAuthorized } from "@/lib/admin-auth";
 import { cloudConfigured, createMissingTemplates, envStatus, listTemplates, phoneInfo, registerPhone, sendHelloWorld, sendText } from "@/lib/wa/cloud";
 import { waId } from "@/lib/shop";
 
@@ -11,7 +12,17 @@ export const dynamic = "force-dynamic";
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export async function GET() {
+// The proxy already asks for the login; route handlers check it again, and POST only accepts JSON
+// from the dashboard's own address, so another site cannot make the seller's browser call it.
+function allowed(request: NextRequest, post = false) {
+  if (!adminAuthorized(request.headers.get("authorization"))) return false;
+  if (!post) return true;
+  const origin = request.headers.get("origin");
+  return request.headers.get("content-type")?.startsWith("application/json") === true && (!origin || new URL(origin).host === request.headers.get("host"));
+}
+
+export async function GET(request: NextRequest) {
+  if (!allowed(request)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const env = { ...envStatus(), firebase: adminConfigured() };
   if (!cloudConfigured()) return NextResponse.json({ env });
   const [phone, templates] = await Promise.all([
@@ -22,6 +33,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!allowed(request, true)) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   if (!cloudConfigured()) return NextResponse.json({ error: "WhatsApp non configuré" }, { status: 400 });
   const body = (await request.json().catch(() => ({}))) as { action?: string; phone?: string; pin?: string };
   try {
