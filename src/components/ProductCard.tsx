@@ -79,9 +79,9 @@ export function ProductCard({ product }: { product: Product }) {
 
         <div className="mt-auto flex flex-col gap-2">
           <div className="flex items-center justify-between rounded-xl border border-line" dir="ltr">
-            <button className="px-2.5 py-2 text-lg leading-none text-muted disabled:opacity-30" onClick={() => setQty(Math.max(1, qty - 1))} disabled={qty <= 1} aria-label="-">−</button>
+            <button className="grid size-11 place-items-center text-lg leading-none text-muted disabled:opacity-30" onClick={() => setQty(Math.max(1, qty - 1))} disabled={qty <= 1} aria-label={t.decrease}>−</button>
             <span className="w-6 text-center text-sm font-semibold">{qty}</span>
-            <button className="px-2.5 py-2 text-lg leading-none text-muted" onClick={() => setQty(qty + 1)} aria-label="+">+</button>
+            <button className="grid size-11 place-items-center text-lg leading-none text-muted" onClick={() => setQty(qty + 1)} aria-label={t.increase}>+</button>
           </div>
           <button
             onClick={add}

@@ -31,7 +31,7 @@ function ProductForm({ initial, onDone }: { initial: Product; onDone: () => void
       onSubmit={(e) => {
         e.preventDefault();
         if (!valid) return;
-        saveProduct({ ...p, name: p.name.trim(), brand: p.brand.trim() });
+        saveProduct({ ...p, name: p.name.trim(), brand: p.brand.trim() }, isNew ? undefined : initial.stock);
         onDone();
       }}
       className="space-y-4"

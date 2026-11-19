@@ -88,7 +88,9 @@ export function EditOrder({ order, onClose }: { order: Order; onClose: () => voi
             ? "Une commande annulée ne peut pas être modifiée."
             : r.error === "empty"
               ? "Gardez au moins un produit."
-              : "Commande introuvable.",
+              : r.error === "stock"
+                ? `Pas assez de stock pour ${r.productName ?? "ce produit"}. Corrigez le stock dans Produits & stock ou baissez la quantité.`
+                : "Commande introuvable.",
       );
       if (r.error === "stale" || r.error === "closed") onClose();
     } catch {

@@ -42,7 +42,7 @@ type Store = {
   removeCity: (id: string) => void;
   saveCategory: (cat: Category) => void;
   removeCategory: (id: string) => void;
-  saveProduct: (p: Product) => void;
+  saveProduct: (p: Product, baseStock?: number) => void;
   updateProduct: (id: string, patch: Partial<Product>) => void;
   removeProduct: (id: string) => void;
   /** Saves the shop order of products: every product id, first shown first. */
@@ -260,7 +260,7 @@ export function StoreProvider({
     removeCity: (id) => save((c) => ({ ...c, cities: c.cities.filter((x) => x.id !== id) }), () => actions.removeCity(id)),
     saveCategory: (cat) => save((c) => ({ ...c, categories: upsert(c.categories, cat) }), () => actions.saveCategory(cat)),
     removeCategory: (id) => save((c) => ({ ...c, categories: c.categories.filter((x) => x.id !== id) }), () => actions.removeCategory(id)),
-    saveProduct: (p) => save((c) => ({ ...c, products: upsert(c.products, p) }), () => actions.saveProduct(p)),
+    saveProduct: (p, baseStock) => save((c) => ({ ...c, products: upsert(c.products, p) }), () => actions.saveProduct(p, baseStock)),
     updateProduct: (id, patch) =>
       save((c) => ({ ...c, products: c.products.map((p) => (p.id === id ? { ...p, ...patch } : p)) }), () => actions.updateProduct(id, patch)),
     removeProduct: (id) => save((c) => ({ ...c, products: c.products.filter((p) => p.id !== id) }), () => actions.removeProduct(id)),

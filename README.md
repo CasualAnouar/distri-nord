@@ -1,6 +1,6 @@
 # Distri Nord
 
-Demo storefront and seller dashboard for Distri Nord, a food and drinks wholesaler based in Rabat.
+Storefront and seller dashboard for Distri Nord, a food and drinks wholesaler based in Rabat.
 
 - Products sold **by the lot** (wholesale price) or **by the piece**.
 - **Minimum order** per cart (100 DH by default, editable). Checkout stays locked until it is reached.
@@ -31,17 +31,18 @@ Setup:
 7. Deploy the Firestore rules (`firebase deploy --only firestore:rules`): the `wa_*` collections are server only.
 
 ## Stack
-Next.js 16 (App Router) · Tailwind CSS 4 · Vercel. Same stack as Talismans Morocco, so Supabase can be added the same way.
+Next.js 16 (App Router) · Tailwind CSS 4 · Firestore (firebase-admin, server only) · Vercel.
 
-## Demo mode
-Products, settings, zones and orders live in Firestore and are read and written only on the server (`src/lib/server/data.ts`, server actions in `src/lib/actions.ts`). Shop pages are rendered with the real catalogue and cached; every dashboard change refreshes them. Only the cart is kept in the browser. To test locally without touching the live data, run the Firestore emulator and set `FIRESTORE_EMULATOR_HOST`.
+## Data and security
+Products, settings, zones and orders live in Firestore and are read and written only on the server, with the service account (`src/lib/firebase-admin.ts`, `src/lib/server/data.ts`, server actions in `src/lib/actions.ts`). `firestore.rules` refuses every other request, so customer orders cannot be read with the public project id. Shop pages are rendered with the real catalogue and cached; every dashboard change refreshes them. Only the cart is kept in the browser.
 
-The WhatsApp conversations (`src/lib/whatsapp.ts`) are scripted from the order status. The buttons inside the chat change the status, just like quick replies will.
+- Vercel needs `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` in Production **and** Preview. Without the service account the shop fails loudly instead of showing demo data.
+- Deploy `firestore.rules` from the Firebase console (Firestore › Rules) or with `firebase deploy --only firestore:rules`. Vercel does not deploy them.
+- Turn on Firestore backups (Firestore › Disaster recovery) and point-in-time recovery.
+- Test locally only against the Firestore emulator (`FIRESTORE_EMULATOR_HOST`); `scripts/seed-firestore.mjs` fills it and refuses to run without it.
 
-## Going live (after the pitch)
-1. **Supabase**: tables `products`, `orders`, `order_lines`, `order_events`, with RLS for staff, plus Supabase Auth for the dashboard (replacing Basic auth). This replaces `store.tsx`.
-2. **WhatsApp Business Cloud API**: built, see "WhatsApp" above. Before real customers, verify the business on Meta and use a dedicated number.
-3. **Product photos**: 15 sample products use front photos from [Open Food Facts](https://world.openfoodfacts.org) (open data, CC BY-SA, credited in the footer), linked by URL. In the dashboard a product can get a photo by upload, by link, or just by its barcode (looked up on Open Food Facts). Products without a photo keep the coloured tile. Before launch, the seller's own photos are the safest choice.
+## Product photos
+Sample products use front photos from [Open Food Facts](https://world.openfoodfacts.org) (open data, CC BY-SA, credited in the footer), linked by URL. In the dashboard a product can get a photo by upload (JPEG, PNG or WebP), by link, or by its barcode. Products without a photo keep the coloured tile.
 
 ## Develop
 ```bash

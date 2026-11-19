@@ -70,7 +70,7 @@ export type OrderEditInput = {
   seen: number;
 };
 
-export type EditOrderResult = { ok: true; order: Order; changed: boolean } | { ok: false; error: "notFound" | "closed" | "stale" | "empty"; order?: Order };
+export type EditOrderResult = { ok: true; order: Order; changed: boolean } | { ok: false; error: "notFound" | "closed" | "stale" | "empty" | "stock"; order?: Order; productName?: string };
 
 /** Price of one lot or one piece on an order line, as it was sold. */
 export const lineUnitPrice = (l: OrderLine) => (l.qty > 0 ? l.price / l.qty : 0);
@@ -169,12 +169,16 @@ export function cartTotals(lines: CartLine[], lookup: (id: string) => Product | 
   for (const l of lines) {
     const p = lookup(l.productId);
     if (!p) continue;
-    subtotal += linePrice(p, l.mode, l.qty);
+    subtotal += round2(linePrice(p, l.mode, l.qty));
     count += l.qty;
   }
+  // Money in centimes, so 6 × 10,70 + 35,80 is exactly 100 and reaches a 100 DH minimum.
+  subtotal = round2(subtotal);
   const city = opts.cities.find((c) => c.id === opts.cityId);
-  const delivery = !city || subtotal >= city.freeFrom ? 0 : city.fee;
-  return { subtotal, count, delivery, total: subtotal + delivery, missing: Math.max(0, opts.minCart - subtotal) };
+  // "Gratuit dès" left at 0 with a fee means never free (it used to make every order free).
+  const freeFrom = city && city.fee > 0 && !(city.freeFrom > 0) ? Infinity : city?.freeFrom ?? 0;
+  const delivery = !city || subtotal >= freeFrom ? 0 : city.fee;
+  return { subtotal, count, delivery, total: round2(subtotal + delivery), missing: round2(Math.max(0, opts.minCart - subtotal)) };
 }
 
 export function formatDh(n: number, locale: "fr" | "ar" = "fr") {

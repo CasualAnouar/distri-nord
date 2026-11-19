@@ -1,7 +1,7 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { adminConfigured, adminDb } from "@/lib/firebase-admin";
 import { defaultSettings, type City, type Settings } from "@/lib/config";
-import { formatDh, mapsUrl, normalizePhone, waId, type AddressReply, type Order, type OrderStatus, type WaLogEntry } from "@/lib/shop";
+import { formatDh, mapsUrl, normalizePhone, unitsByProduct, waId, type AddressReply, type Order, type OrderStatus, type WaLogEntry } from "@/lib/shop";
 import { WaError, cloudConfigured, markRead, sendButtons, sendLocation, sendLocationRequest, sendTemplate, sendText } from "./cloud";
 import { renderTemplate, type TemplateKey, type TemplateLang } from "./templates";
 
@@ -195,6 +195,13 @@ async function moveOrder(db: Firestore, orderId: string, to: OrderStatus, reply?
     if (!snap.exists) return null;
     const o = snap.data() as StoredOrder;
     if (!allowed[o.status].includes(to)) return { ok: false as const, status: o.status };
+    // A cancelled order gives its units back to stock (all reads before the writes).
+    if (to === "cancelled") {
+      const units = unitsByProduct(o.lines);
+      const ids = [...units.keys()];
+      const snaps = ids.length ? await tx.getAll(...ids.map((id) => db.collection("products").doc(id))) : [];
+      for (const s of snaps) if (s.exists) tx.update(s.ref, { stock: (Number(s.data()?.stock) || 0) + (units.get(s.id) ?? 0) });
+    }
     tx.update(ref, {
       status: to,
       history: [...o.history, { status: to, at: new Date().toISOString() }],

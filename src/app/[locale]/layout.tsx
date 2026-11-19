@@ -8,15 +8,28 @@ import { StoreProvider } from "@/lib/store";
 import { getStoreConfig, publicConfig } from "@/lib/server/data";
 import { Header } from "@/components/Header";
 
-export const metadata: Metadata = {
-  title: "Distri Nord · Grossiste à Rabat",
-  description: "Boissons, snacks, épicerie et hygiène en lot ou à la pièce. Paiement à la livraison, suivi WhatsApp.",
-};
+// Title and description come from the seller's texts (Paramètres), in the page's language.
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const { settings } = await getStoreConfig();
+  const title = `${settings.storeName[locale]} · ${settings.tagline[locale]}`;
+  const description = settings.heroText[locale];
+  return {
+    title,
+    description,
+    alternates: { canonical: `/${locale}`, languages: { fr: "/fr", ar: "/ar", "x-default": "/fr" } },
+    openGraph: { title, description, siteName: settings.storeName[locale], locale: locale === "ar" ? "ar_MA" : "fr_MA", type: "website" },
+  };
+}
 
 export const viewport: Viewport = { themeColor: "#0b2654" };
 
 // Pages are built once and kept in the cache; the dashboard refreshes them on every change.
 export const revalidate = 300;
+
+// Only /fr and /ar exist: any other first segment is a 404 (src/app/global-not-found.tsx).
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
