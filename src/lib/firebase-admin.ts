@@ -27,6 +27,27 @@ export function databaseExpected() {
   return Boolean(projectId());
 }
 
+/**
+ * The service account key as pasted in Vercel can arrive in many shapes: on one line with literal
+ * "\n", wrapped in quotes, with spaces instead of line breaks, or as the whole JSON file. Whatever
+ * the shape, keep only the key's base64 body and rebuild a clean PEM from it.
+ */
+export function normalizePrivateKey(raw: string): string {
+  let key = raw.trim();
+  if (key.startsWith("{")) {
+    try {
+      key = String(JSON.parse(key).private_key ?? key);
+    } catch {
+      // not JSON after all: keep going with the raw text
+    }
+  }
+  key = key.replace(/^['"]+|['"]+$/g, "").replace(/\\+n/g, "\n").replace(/\\+r/g, "");
+  const m = key.match(/-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END \1-----/);
+  if (!m) return key;
+  const body = m[2].replace(/[^A-Za-z0-9+/=]/g, "");
+  return `-----BEGIN ${m[1]}-----\n${body.match(/.{1,64}/g)?.join("\n") ?? ""}\n-----END ${m[1]}-----\n`;
+}
+
 let cached: Firestore | null = null;
 
 export function adminDb(): Firestore {
@@ -41,8 +62,7 @@ export function adminDb(): Firestore {
             credential: cert({
               projectId: projectId(),
               clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-              // Vercel stores the key on one line with literal "\n".
-              privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+              privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY!),
             }),
           },
     );
